@@ -1,80 +1,103 @@
 use std::collections::HashMap;
+use std::net::TcpStream;
+
+use super::headers::Headers;
+
+#[derive(Debug)]
+pub struct Query {
+    data: HashMap<String, Vec<String>>,
+}
+
+impl Query {
+    pub fn new() -> Query {
+        Query {
+            data: HashMap::<String, Vec<String>>::new(),
+        }
+    }
+
+    pub fn parse(query_string: &str) -> Query{
+        let mut query = Query::new();
+
+        for q in query_string.split("&") {
+            let key_value: Vec<_> = q.split("=").collect();
+            let key = key_value[0];
+            let value = key_value[1];
+
+            let mut query_vec = query.data.entry(key.to_string()).or_insert(Vec::new());
+            query_vec.push(value.to_string());
+        }
+
+        query
+    }
+
+    pub fn get(&self, name: &str) -> Option<&str> {
+        match self.data.get(name) {
+            Some(values) => {
+                if values.is_empty() {
+                    None
+                }
+                else {
+                    Some(&values[0])
+                }
+            },
+            None => None
+        }
+    }
+
+    pub fn get_default(&self, name: &str, default: String) -> String {
+        let default = default.to_string();
+        match self.data.get(name) {
+            Some(values) => {
+                if values.is_empty() {
+                    default
+                }
+                else {
+                    values[0].clone()
+                }
+            },
+            None => default
+        }
+    }
+
+    pub fn insert(&mut self, name: &str, value: &str) {
+        let mut vec = self.data.entry(name.to_string()).or_insert(Vec::<String>::new());
+        vec.push(value.to_string());
+    }
+}
 
 #[derive(Debug)]
 pub struct Request {
     method: String,
     path: String,
-    query: HashMap<String, Vec<String>>,
+    query: Query,
     http_version: String,
-    headers: HashMap<String, Vec<String>>,
-    body: String,
+    headers: Headers,
+    body_stream: TcpStream,
 }
 
-pub struct RequestBuilder {
-    method: String,
-    path: String,
-    query: HashMap<String, Vec<String>>,
-    http_version: String,
-    headers: HashMap<String, Vec<String>>,
-    body: String,
-}
+impl Request {
+    pub fn new(method: &str,
+               path: &str,
+               query: &str,
+               version: &str,
+               headers: Headers,
+               body: TcpStream) -> Request {
 
-impl RequestBuilder {
-    pub fn new() -> RequestBuilder {
-        RequestBuilder {
-            method: String::new(),
-            path: String::new(),
-            query: HashMap::<String, Vec<String>>::new(),
-            http_version: String::new(),
-            headers: HashMap::<String, Vec<String>>::new(),
-            body: String::new(),
-        }
-    }
-
-    pub fn with_method(&mut self, method: &str) -> &mut Self {
-        self.method = method.to_string();
-        self
-    }
-
-    pub fn with_path(&mut self, path: &str) -> &mut Self {
-        self.path = path.to_string();
-        self
-    }
-
-    pub fn with_query(&mut self, name: &str, value: &str) -> &mut Self {
-        {
-            let mut query_vec = self.query.entry(name.to_string()).or_insert(Vec::new());
-            query_vec.push(value.to_string());
-        }
-        self
-    }
-
-    pub fn with_http_version(&mut self, version: &str) -> &mut Self {
-        self.http_version = version.to_string();
-        self
-    }
-
-    pub fn with_header(&mut self, header: &str, value: &str) -> &mut Self {
-        {
-            let mut header_vec = self.headers.entry(header.to_string()).or_insert(Vec::new());
-            header_vec.push(value.to_string());
-        }
-        self
-    }
-
-    pub fn with_body(&mut self, body: &str) -> &mut Self {
-        self.body = body.to_string();
-        self
-    }
-
-    pub fn build(self) -> Request {
         Request {
-            method: self.method,
-            path: self.path,
-            query: self.query,
-            http_version: self.http_version,
-            headers: self.headers,
-            body: self.body,
+            method: method.to_string(),
+            path: path.to_string(),
+            query: Query::parse(query),
+            http_version: version.to_string(),
+            headers: headers,
+            body_stream: body
         }
+    }
+
+    pub fn query(&self) -> &Query {
+        &self.query
+    }
+
+    pub fn headers(&self) -> &Headers {
+        &self.headers
     }
 }

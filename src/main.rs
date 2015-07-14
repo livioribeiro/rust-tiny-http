@@ -6,7 +6,7 @@ fn main() {
     let server: HttpServer = HttpServer::new("127.0.0.1:9999");
     let handler = |req| {
         println!("{:?}", req);
-        Response
+        Response::new("Response")
     };
     server.start(Box::new(handler));
 }

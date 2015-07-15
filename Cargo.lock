@@ -1,4 +1,35 @@
 [root]
 name = "http-server"
 version = "0.1.0"
+dependencies = [
+ "conduit 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conduit-mime-types 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "conduit"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "semver 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "conduit-mime-types"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rustc-serialize 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rustc-serialize"
+version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "semver"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 

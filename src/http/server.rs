@@ -1,4 +1,3 @@
-use std::io::{BufWriter, Write};
 use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
@@ -23,7 +22,7 @@ impl HttpServer {
         }
     }
 
-    pub fn start(&self, handler: Box<Fn(Request) -> Response + Send + Sync>) {
+    pub fn start(&self, handler: Box<Fn(Request, Response) + Send + Sync>) {
         let arc = Arc::new(handler);
         for stream in self.listener.incoming() {
             match stream {
@@ -31,9 +30,8 @@ impl HttpServer {
                     let handler = arc.clone();
                     thread::spawn(move || {
                         let request = parser::parse_request(stream.try_clone().unwrap());
-                        let response = handler(request);
-                        let mut writer = BufWriter::new(stream);
-                        writer.write(response.body().as_bytes()).unwrap();
+                        let response = Response::new("HTTP/1.0", 200, "OK", stream.try_clone().unwrap());
+                        handler(request, response);
                     });
                 },
                 Err(_) => {}

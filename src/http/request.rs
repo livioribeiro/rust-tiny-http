@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Error, Formatter};
-use std::net::TcpStream;
+use std::net::{TcpStream, SocketAddr};
 
 use conduit::{Method, Scheme};
-use semver;
 
 use super::headers::Headers;
 
@@ -129,6 +128,10 @@ impl Request {
 
     pub fn headers(&self) -> &Headers {
         &self.headers
+    }
+
+    pub fn local_addr(&self) -> SocketAddr {
+        self.stream.local_addr().unwrap()
     }
 }
 

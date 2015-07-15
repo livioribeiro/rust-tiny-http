@@ -2,8 +2,7 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
-use super::request::Request;
-use super::response::Response;
+use super::{Request, Response};
 use super::parser;
 
 #[allow(dead_code)]

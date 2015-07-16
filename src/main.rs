@@ -1,14 +1,19 @@
 extern crate http_server;
+extern crate conduit_mime_types;
 
+use std::env;
 use std::io::{Read, Write};
 use std::fs::{self, File};
 use std::path::Path;
 use std::process::Command;
 
+use conduit_mime_types::Types;
 use http_server::http::{HttpServer, Request, Response};
 
-fn handle(root: &Path, req: Request, mut res: Response) {
-    let resource = root.join(req.path()).to_str().unwrap().to_owned();
+fn handle(root: &Path, mimetypes: &Types, req: Request, mut res: Response) {
+    let path = req.path().to_owned();
+    let path = &path[1..path.len()];
+    let resource = root.join(path).to_str().unwrap().to_owned();
 
     let metadata = match fs::metadata(&resource) {
         Ok(res) => res,
@@ -16,20 +21,21 @@ fn handle(root: &Path, req: Request, mut res: Response) {
     };
     if metadata.is_file() {
         let mut f = File::open(&resource).unwrap();
-        
+        let mime = mimetypes.mime_for_path(Path::new(&resource));
+
         res.with_header("Connection", "close");
-        res.with_header("Content-Type", "application/pdf");
+        res.with_header("Content-Type", mime);
         res.with_header("Content-Length", &metadata.len().to_string());
 
         res.start().unwrap();
-        let mut buf: [u8; 1024] = [0; 1024];
+        let mut buf: [u8; 4096] = [0; 4096];
         loop {
             match f.read(&mut buf) {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
                         break;
                     }
-                    res.write(&buf).unwrap();
+                    res.write(&buf[0..bytes_read]).unwrap();
                 },
                 Err(_) => panic!("An error has ocurred")
             }
@@ -68,10 +74,11 @@ fn handle(root: &Path, req: Request, mut res: Response) {
 }
 
 fn main() {
-    let path = Path::new(".");
+    let path = env::current_dir().unwrap().as_path().to_owned();
+    let mimetypes = Types::new().unwrap();
 
     let handler = move |req: Request, res: Response| {
-        handle(&path, req, res);
+        handle(&path, &mimetypes, req, res);
     };
 
     let handler = Box::new(handler);

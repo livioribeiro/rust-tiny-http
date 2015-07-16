@@ -13,7 +13,7 @@ pub struct HttpServer {
 
 impl HttpServer {
     pub fn new(addr: &str) -> HttpServer {
-        let listener = TcpListener::bind(addr).unwrap();
+        let listener = TcpListener::bind(addr).ok().expect(format!("Could not bind to address {}", addr).as_ref());
 
         HttpServer {
             addr: addr.to_string(),
@@ -27,13 +27,17 @@ impl HttpServer {
             match stream {
                 Ok(stream) => {
                     let handler = arc.clone();
+
                     thread::spawn(move || {
-                        let request = parser::parse_request(stream.try_clone().unwrap());
-                        let response = Response::new("HTTP/1.0", 200, "OK", stream.try_clone().unwrap());
+                        let request = match parser::parse_request(stream.try_clone().ok().expect("Failed to clone request stream")) {
+                            Ok(request) => request,
+                            Err(error) => panic!(format!("Failed to parse request: {}", error)),
+                        };
+                        let response = Response::new(stream.try_clone().ok().expect("Failed to clone response stream"));
                         handler(request, response);
                     });
                 },
-                Err(_) => {}
+                Err(error) => panic!(error),
             }
         }
     }

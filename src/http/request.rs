@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Error, Formatter};
 use std::net::{TcpStream, SocketAddr};
 
-use conduit::{Method, Scheme};
+use conduit::Scheme;
 
 use super::headers::Headers;
 
@@ -68,7 +68,7 @@ impl Display for Query {
 #[derive(Debug)]
 pub struct Request {
     http_version: String,
-    method: Method,
+    method: String,
     scheme: Scheme,
     path: String,
     query: Option<Query>,
@@ -79,7 +79,7 @@ pub struct Request {
 
 impl Request {
     pub fn new(version: &str,
-           method: Method,
+           method: &str,
            path: &str,
            query: Option<&str>,
            headers: Headers,
@@ -92,9 +92,9 @@ impl Request {
 
         Request {
             http_version: version.to_owned(),
-            method: method,
+            method: method.to_owned(),
             scheme: Scheme::Http,
-            path: path.to_string(),
+            path: path.to_owned(),
             query: query,
             content_length: None,
             headers: headers,
@@ -106,8 +106,8 @@ impl Request {
         &self.http_version
     }
 
-    pub fn method(&self) -> Method {
-        self.method
+    pub fn method(&self) -> &str {
+        self.method.as_ref()
     }
 
     pub fn scheme(&self) -> Scheme {

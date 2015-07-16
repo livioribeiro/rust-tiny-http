@@ -10,21 +10,22 @@ use super::parser;
 pub struct HttpServer {
     addr: String,
     listener: TcpListener,
+    handler: Box<Handler + Send + Sync>
 }
 
 impl HttpServer {
-    pub fn new(addr: &str) -> HttpServer {
+    pub fn new(addr: &str, handler: Box<Handler + Send + Sync>) -> HttpServer {
         let listener = TcpListener::bind(addr).ok().expect(format!("Could not bind to address {}", addr).as_ref());
 
         HttpServer {
             addr: addr.to_string(),
             listener: listener,
+            handler: handler,
         }
     }
 
-    pub fn start(&self, handler: Box<Handler + Send + Sync>) {
-        // let handler = Box::new(handler);
-        let arc = Arc::new(handler);
+    pub fn start(self) {
+        let arc = Arc::new(self.handler);
         for stream in self.listener.incoming() {
             match stream {
                 Ok(stream) => {

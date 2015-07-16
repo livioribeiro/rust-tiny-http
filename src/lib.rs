@@ -1,4 +1,4 @@
 extern crate conduit;
-extern crate semver;
+extern crate conduit_mime_types;
 
 pub mod http;

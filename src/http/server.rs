@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::thread;
 
 use super::{Request, Response};
+use super::handler::Handler;
 use super::parser;
 
 #[allow(dead_code)]
@@ -21,7 +22,8 @@ impl HttpServer {
         }
     }
 
-    pub fn start(&self, handler: Box<Fn(Request, Response) + Send + Sync>) {
+    pub fn start(&self, handler: Box<Handler + Send + Sync>) {
+        // let handler = Box::new(handler);
         let arc = Arc::new(handler);
         for stream in self.listener.incoming() {
             match stream {
@@ -29,12 +31,12 @@ impl HttpServer {
                     let handler = arc.clone();
 
                     thread::spawn(move || {
-                        let request = match parser::parse_request(stream.try_clone().ok().expect("Failed to clone request stream")) {
+                        let mut request = match parser::parse_request(stream.try_clone().ok().expect("Failed to clone request stream")) {
                             Ok(request) => request,
                             Err(error) => panic!(format!("Failed to parse request: {}", error)),
                         };
-                        let response = Response::new(stream.try_clone().ok().expect("Failed to clone response stream"));
-                        handler(request, response);
+                        let mut response = Response::new(stream.try_clone().ok().expect("Failed to clone response stream"));
+                        handler.handle(&mut request, &mut response);
                     });
                 },
                 Err(error) => panic!(error),

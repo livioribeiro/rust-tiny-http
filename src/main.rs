@@ -2,14 +2,11 @@ extern crate http_server;
 extern crate conduit_mime_types;
 
 use std::env;
-use std::io::{Read, Write};
-use std::fs::{self, File};
-use std::path::Path;
-use std::process::Command;
 
-use conduit_mime_types::Types;
-use http_server::http::{HttpServer, Request, Response};
+use http_server::http::HttpServer;
+use http_server::http::handler::{ServerHandler, DirectoryKind, FileKind};
 
+/*
 fn handle(root: &Path, mimetypes: &Types, req: Request, mut res: Response) {
     let path = req.path().to_owned();
     let path = &path[1..path.len()];
@@ -76,21 +73,22 @@ fn handle(root: &Path, mimetypes: &Types, req: Request, mut res: Response) {
             name = format!("{}/", name);
         }
 
-        res.write(format!("<li><a href=\"{0}/{1}\">{1}</a></li>", path, name).as_bytes()).unwrap();
+        res.write(format!(r#"<li><a href="{0}/{1}">{1}</a></li>"#, path, name).as_bytes()).unwrap();
     }
     res.write("</ul></body></html>".as_bytes()).unwrap();
     res.flush().unwrap();
 }
+*/
 
 fn main() {
-    let path = env::current_dir().unwrap().as_path().to_owned();
-    let mimetypes = Types::new().unwrap();
+    let path = env::current_dir().unwrap();
+    /*let mimetypes = Types::new().unwrap();
 
     let handler = move |req: Request, res: Response| {
         handle(&path, &mimetypes, req, res);
-    };
+    };*/
 
-    let handler = Box::new(handler);
+    let handler = ServerHandler::<FileKind>::new(path);
     let server: HttpServer = HttpServer::new("127.0.0.1:9000");
-    server.start(handler);
+    server.start(Box::new(handler));
 }

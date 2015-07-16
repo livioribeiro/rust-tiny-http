@@ -1,10 +1,12 @@
 use std::collections::HashMap;
+use std::io::{self, Read, BufRead, BufReader};
 use std::fmt::{Display, Error, Formatter};
 use std::net::{TcpStream, SocketAddr};
 
 use conduit::Scheme;
 
 use super::headers::Headers;
+use super::parser;
 
 #[derive(Debug)]
 pub struct Query {
@@ -65,8 +67,7 @@ impl Display for Query {
     }
 }
 
-#[derive(Debug)]
-pub struct Request {
+pub struct Request<R: Read> {
     http_version: String,
     method: String,
     scheme: Scheme,
@@ -74,23 +75,20 @@ pub struct Request {
     query: Option<Query>,
     content_length: Option<u64>,
     headers: Headers,
-    stream: TcpStream,
+    stream: BufReader<R>,
 }
 
-impl Request {
-    pub fn new(version: &str,
-           method: &str,
-           path: &str,
-           query: Option<&str>,
-           headers: Headers,
-           stream: TcpStream) -> Request {
+impl<R: Read> Request<R> {
+    pub fn create(stream: R) -> Result<Request<R>, io::Error> {
+        let mut buf_reader = BufReader::new(stream);
+        let (version, method, path, query, headers) = try!(parser::parse_request(&mut buf_reader));
 
         let query = match query {
-            Some(q) => Some(Query::parse(q)),
+            Some(q) => Some(Query::parse(&q)),
             None => None,
         };
 
-        Request {
+        Ok(Request {
             http_version: version.to_owned(),
             method: method.to_owned(),
             scheme: Scheme::Http,
@@ -98,8 +96,8 @@ impl Request {
             query: query,
             content_length: None,
             headers: headers,
-            stream: stream
-        }
+            stream: buf_reader,
+        })
     }
 
     pub fn http_version(&self) -> &str {
@@ -130,14 +128,26 @@ impl Request {
         &self.headers
     }
 
-    pub fn local_addr(&self) -> SocketAddr {
-        self.stream.local_addr().unwrap()
+/*
+    pub fn local_addr(&self) -> Result<SocketAddr, io::Error> {
+        self.stream.get_ref().local_addr()
+    }
+
+    pub fn peer_addr(&self) -> Result<SocketAddr, io::Error> {
+        self.stream.get_ref().peer_addr()
+    }
+*/
+}
+
+impl<R: Read> Read for Request<R> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
+        self.stream.read(buf)
     }
 }
 
-impl Display for Request {
+impl<R: Read> Display for Request<R> {
     fn fmt(&self, formatter: &mut Formatter ) -> Result<(), Error> {
-        try!(writeln!(formatter, "{:?} {:?} {:?}", self.method, self.path, self.http_version));
+        try!(writeln!(formatter, "{} {} {}", self.method, self.path, self.http_version));
         try!(write!(formatter, "Query: {:?}", self.query));
         try!(write!(formatter, "Headers: {}", self.headers));
 

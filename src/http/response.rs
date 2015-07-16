@@ -1,27 +1,26 @@
 use std::io;
-use std::io::Write;
-use std::net::TcpStream;
+use std::io::{Write, BufWriter};
 
 use super::headers::Headers;
 
 #[derive(Debug)]
-pub struct Response {
+pub struct Response<W: Write> {
     http_version: String,
     status: i32,
     status_text: String,
     headers: Headers,
-    stream: TcpStream,
+    stream: BufWriter<W>,
     headers_written: bool,
 }
 
-impl Response {
-    pub fn new(stream: TcpStream) -> Response {
+impl<W: Write> Response<W> {
+    pub fn new(stream: W) -> Response<W> {
         Response {
             http_version: "1.0".to_string(),
             status: 200,
             status_text: "OK".to_string(),
             headers: Headers::new(),
-            stream: stream,
+            stream: BufWriter::new(stream),
             headers_written: false,
         }
     }
@@ -87,7 +86,7 @@ impl Response {
     }
 }
 
-impl Write for Response {
+impl<W: Write> Write for Response<W> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         if !self.headers_written {
             panic!("Headers not written");
@@ -95,6 +94,7 @@ impl Write for Response {
         try!(self.stream.write(buf));
         Ok(buf.len())
     }
+
     fn flush(&mut self) -> Result<(), io::Error> {
         if !self.headers_written {
             panic!("Headers not written");

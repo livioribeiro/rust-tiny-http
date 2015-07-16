@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::fs::{self, File, Metadata};
-use std::io::{Read, Write, Error, ErrorKind};
+use std::io::{Read, Write, BufRead, Error, ErrorKind};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -12,8 +12,8 @@ use super::{Request, Response};
 pub struct FileKind;
 pub struct DirectoryKind;
 
-pub trait Handler {
-    fn handle(&self, req: &mut Request, res: &mut Response);
+pub trait Handler<T: Read + Write> {
+    fn handle(&self, req: &mut Request<T>, res: &mut Response<T>);
 }
 
 pub struct ServerHandler<K: Any = File> {
@@ -36,7 +36,7 @@ impl<K: Any> ServerHandler<K> {
         }
     }
 
-    fn get_resource_and_metadata(&self, req: &Request)
+    fn get_resource_and_metadata<R: Read>(&self, req: &mut Request<R>)
             -> Result<(PathBuf, Metadata), Error> {
 
         let path = req.path();
@@ -48,7 +48,7 @@ impl<K: Any> ServerHandler<K> {
         Ok((resource, metadata))
     }
 
-    fn send_file(&self, resource: PathBuf, metadata: Metadata, res: &mut Response) {
+    fn send_file<T: Write>(&self, resource: PathBuf, metadata: Metadata, res: &mut Response<T>) {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
@@ -71,21 +71,21 @@ impl<K: Any> ServerHandler<K> {
         }
     }
 
-    fn send_not_found(&self, res: &mut Response) {
+    fn send_not_found<T: Write>(&self, res: &mut Response<T>) {
         res.with_status(404, "Not Found");
         res.start().ok().expect("Failed to send error response");
         res.flush().ok().expect("Failed to send error response");
     }
 
-    fn send_error(&self, res: &mut Response) {
+    fn send_error<T: Write>(&self, res: &mut Response<T>) {
         res.with_status(500, "Internal Server Error");
         res.start().ok().expect("Failed to send error response");
         res.flush().ok().expect("Failed to send error response");
     }
 }
 
-impl Handler for ServerHandler<FileKind> {
-    fn handle(&self, req: &mut Request, res: &mut Response) {
+impl<T: Read + Write> Handler<T> for ServerHandler<FileKind> {
+    fn handle(&self, req: &mut Request<T>, res: &mut Response<T>) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {
@@ -107,8 +107,8 @@ impl Handler for ServerHandler<FileKind> {
     }
 }
 
-impl Handler for ServerHandler<DirectoryKind> {
-    fn handle(&self, req: &mut Request, res: &mut Response) {
+impl<T: Read + Write> Handler<T> for ServerHandler<DirectoryKind> {
+    fn handle(&self, req: &mut Request<T>, res: &mut Response<T>) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {

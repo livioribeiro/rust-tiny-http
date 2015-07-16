@@ -17,8 +17,9 @@ fn handle(root: &Path, mimetypes: &Types, req: Request, mut res: Response) {
 
     let metadata = match fs::metadata(&resource) {
         Ok(res) => res,
-        Err(e) => panic!("{}", e),
+        Err(e) => { println!("{}", resource); panic!("{}", e); },
     };
+
     if metadata.is_file() {
         let mut f = File::open(&resource).unwrap();
         let mime = mimetypes.mime_for_path(Path::new(&resource));
@@ -65,9 +66,17 @@ fn handle(root: &Path, mimetypes: &Types, req: Request, mut res: Response) {
 
     res.start().unwrap();
     res.write("<html><body><ul>".as_bytes()).unwrap();
-    for file in s.split('\n') {
-        if file.len() == 0 { continue }
-        res.write(format!("<li><a href=\"{0}/{1}\">{1}</a></li>", path, file).as_bytes()).unwrap();
+    for name in s.split('\n') {
+        if name.len() == 0 { continue }
+        let mut name = name.to_owned();
+
+        let metadata = fs::metadata(Path::new(&resource).join(&name)).unwrap();
+
+        if metadata.is_dir() {
+            name = format!("{}/", name);
+        }
+
+        res.write(format!("<li><a href=\"{0}/{1}\">{1}</a></li>", path, name).as_bytes()).unwrap();
     }
     res.write("</ul></body></html>".as_bytes()).unwrap();
     res.flush().unwrap();
@@ -82,6 +91,6 @@ fn main() {
     };
 
     let handler = Box::new(handler);
-    let server: HttpServer = HttpServer::new("127.0.0.1:9999");
+    let server: HttpServer = HttpServer::new("127.0.0.1:9000");
     server.start(handler);
 }

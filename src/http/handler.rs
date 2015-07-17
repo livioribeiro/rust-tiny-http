@@ -5,26 +5,25 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use time;
 use conduit_mime_types::Types;
 
 use super::{Request, Response};
 
-pub struct FileKind;
-pub struct DirectoryKind;
+pub struct FileMode;
+pub struct DirectoryMode;
 
 pub trait Handler {
     fn handle(&self, req: &mut Request, res: &mut Response);
 }
 
-pub struct ServerHandler<K: Any = FileKind> {
+pub struct ServerHandler<M: Any> {
     root: PathBuf,
     mimetypes: Types,
-    _kind: PhantomData<K>,
+    _kind: PhantomData<M>,
 }
 
-impl<K: Any> ServerHandler<K> {
-    pub fn new(root: PathBuf) -> ServerHandler<K> {
+impl<M: Any> ServerHandler<M> {
+    pub fn new(root: &PathBuf) -> ServerHandler<M> {
         let mimetypes = match Types::new() {
             Ok(types) => types,
             Err(error) => panic!(error),
@@ -53,9 +52,6 @@ impl<K: Any> ServerHandler<K> {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
-        let date = time::now_utc();
-
-        res.with_header("Date", format!("{}", date.rfc822()).as_ref());
         res.with_header("Connection", "close");
         res.with_header("Content-Type", mime);
         res.with_header("Content-Length", &metadata.len().to_string());
@@ -92,7 +88,7 @@ impl<K: Any> ServerHandler<K> {
     }
 }
 
-impl Handler for ServerHandler<FileKind> {
+impl Handler for ServerHandler<FileMode> {
     fn handle(&self, req: &mut Request, res: &mut Response) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
@@ -115,7 +111,7 @@ impl Handler for ServerHandler<FileKind> {
     }
 }
 
-impl Handler for ServerHandler<DirectoryKind> {
+impl Handler for ServerHandler<DirectoryMode> {
     fn handle(&self, req: &mut Request, res: &mut Response) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,

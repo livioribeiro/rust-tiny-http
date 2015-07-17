@@ -7,7 +7,7 @@ use std::process::Command;
 
 use conduit_mime_types::Types;
 
-use super::{Request, Response};
+use ::{Request, Response};
 
 pub struct FileMode;
 pub struct DirectoryMode;

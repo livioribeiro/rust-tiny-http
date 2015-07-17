@@ -2,8 +2,8 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
-use super::{Request, Response};
-use super::handler::Handler;
+use ::{Request, Response};
+use ::handler::Handler;
 
 #[allow(dead_code)]
 pub struct HttpServer {

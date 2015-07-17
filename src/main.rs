@@ -5,8 +5,8 @@ use std::env;
 
 use argparse::{ArgumentParser, Store, StoreTrue};
 
-use http_server::http::HttpServer;
-use http_server::http::handler::{Handler, ServerHandler, FileMode, DirectoryMode};
+use http_server::HttpServer;
+use http_server::handler::{Handler, ServerHandler, FileMode, DirectoryMode};
 
 fn main() {
     let mut addr = "127.0.0.1:9000".to_string();

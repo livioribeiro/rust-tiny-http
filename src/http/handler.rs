@@ -157,7 +157,7 @@ impl Handler for ServerHandler<DirectoryKind> {
                 name = format!("{}/", name);
             }
 
-            res.write(format!("<li><a href=\"{0}/{1}\">{1}</a></li>", path, name).as_bytes()).unwrap();
+            res.write(format!("<li><a href=\"{0}{1}\">{1}</a></li>", path, name).as_bytes()).unwrap();
         }
         res.write("</ul></body></html>".as_bytes()).unwrap();
         res.flush().unwrap();

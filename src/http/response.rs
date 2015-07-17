@@ -79,7 +79,7 @@ impl Response {
         try!(self.stream.write(status_line.as_bytes()));
 
         let headers = self.headers.clone();
-        try!(self.stream.write(format!("{}\r\n", headers).as_bytes()));
+        try!(self.stream.write(format!("{}\r\n", headers.to_string()).as_bytes()));
         try!(self.stream.write("\r\n".as_bytes()));
 
         Ok(&mut self.stream)

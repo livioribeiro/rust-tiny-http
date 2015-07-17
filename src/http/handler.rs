@@ -16,6 +16,7 @@ pub trait Handler {
     fn handle(&self, req: &mut Request, res: &mut Response);
 }
 
+#[derive(Debug)]
 pub struct ServerHandler<M: Any> {
     root: PathBuf,
     mimetypes: Types,
@@ -52,9 +53,9 @@ impl<M: Any> ServerHandler<M> {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
-        res.with_header("Connection", "close");
-        res.with_header("Content-Type", mime);
-        res.with_header("Content-Length", &metadata.len().to_string());
+        res.with_header("Connection", "close")
+            .with_header("Content-Type", mime)
+            .with_header("Content-Length", &metadata.len().to_string());
 
         let res = res.start().unwrap();
         io::copy(&mut f, res).unwrap();
@@ -138,8 +139,7 @@ impl Handler for ServerHandler<DirectoryMode> {
         let s: String;
         if output.status.success() {
             s = String::from_utf8_lossy(&output.stdout).as_ref().to_owned();
-        }
-        else {
+        } else {
             s = String::from_utf8_lossy(&output.stderr).as_ref().to_owned();
             panic!("rustc failed and stderr was:\n{}", s);
         }
@@ -149,7 +149,10 @@ impl Handler for ServerHandler<DirectoryMode> {
             path = "";
         }
 
+        res.with_header("Content-Type", "text/html");
+
         let res = res.start().unwrap();
+
         res.write("<html><body><ul>".as_bytes()).unwrap();
         for name in s.split('\n') {
             if name.len() == 0 { continue }

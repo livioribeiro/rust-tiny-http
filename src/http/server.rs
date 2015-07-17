@@ -29,11 +29,7 @@ impl HttpServer {
                     let handler = arc.clone();
 
                     thread::spawn(move || {
-                        let mut request = match Request::from_stream(stream.try_clone().ok().expect("Failed to clone request stream")) {
-                            Ok(request) => request,
-                            Err(error) => panic!(format!("Failed to parse request: {}", error)),
-                        };
-                        println!("{}", request.query().to_string());
+                        let mut request = Request::from_stream(stream.try_clone().unwrap()).unwrap();
                         let mut response = Response::new(stream.try_clone().ok().expect("Failed to clone response stream"));
                         handler.handle(&mut request, &mut response);
                     });
@@ -45,5 +41,11 @@ impl HttpServer {
 
     pub fn stop(&self) {
         drop(&self.listener);
+    }
+}
+
+impl Drop for HttpServer {
+    fn drop(&mut self) {
+        self.stop();
     }
 }

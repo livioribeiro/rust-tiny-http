@@ -22,11 +22,11 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
 
     let path_query: Vec<_> = first_line[1].split("?").collect();
     let path = path_query[0].to_owned();
+    
     let query: Query;
     if path_query.len() > 1 {
         query = Query::from_str(path_query[1]);
-    }
-    else {
+    } else {
         query = Query::new();
     }
 

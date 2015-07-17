@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::clone;
-use std::fmt;
 
 #[derive(Debug)]
 pub struct Headers {
@@ -37,8 +36,7 @@ impl Headers {
             Some(vec) => {
                 if vec.is_empty() {
                     None
-                }
-                else {
+                } else {
                     let vec = vec.clone();
                     Some(vec)
                 }
@@ -63,22 +61,22 @@ impl Headers {
     }
 }
 
-impl fmt::Display for Headers {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+impl ToString for Headers {
+    fn to_string(&self) -> String {
+        let mut result = String::new();
+
         for (key, vec) in &self.data {
-            let mut vec = vec.clone();
-            match vec.pop() {
-                Some(first) => {
-                    try!(write!(formatter, "{}: {}", key, first));
-                    for value in vec {
-                        try!(write!(formatter, ", {}", value));
-                    }
-                    try!(write!(formatter, "\r\n"));
-                },
-                None => {}
+            let mut iter = vec.iter();
+            match iter.next() {
+                Some(i) => result.push_str(&format!("{}: {}", key, i)),
+                None => return result,
+            }
+
+            for i in vec {
+                format!(", {}", i);
             }
         }
-        Ok(())
+        result
     }
 }
 

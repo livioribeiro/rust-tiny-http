@@ -71,8 +71,8 @@ impl Request {
 impl Display for Request {
     fn fmt(&self, formatter: &mut Formatter ) -> Result<(), fmt::Error> {
         try!(writeln!(formatter, "{} {} {}", self.method, self.path, self.http_version));
-        try!(write!(formatter, "Query: {:?}", self.query));
-        try!(write!(formatter, "Headers: {}", self.headers));
+        try!(write!(formatter, "Query: {}", self.query.to_string()));
+        try!(write!(formatter, "Headers: {}", self.headers.to_string()));
 
         Ok(())
     }

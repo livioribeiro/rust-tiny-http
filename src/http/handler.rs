@@ -2,7 +2,6 @@ use std::any::Any;
 use std::fs::{self, File, Metadata};
 use std::io::{self, Write, Error, ErrorKind};
 use std::marker::PhantomData;
-use std::net::Shutdown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

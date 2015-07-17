@@ -22,7 +22,6 @@ impl HttpServer {
     }
 
     pub fn start(&self, handler: Box<Handler + Send + Sync>) {
-        // let handler = Box::new(handler);
         let arc = Arc::new(handler);
         for stream in self.listener.incoming() {
             match stream {

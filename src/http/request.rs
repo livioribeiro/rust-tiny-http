@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{self, Display, Formatter};
+use std::io::{self, BufReader};
 use std::net::{TcpStream, SocketAddr};
 
-use conduit::Scheme;
-
 use super::headers::Headers;
+use super::parser;
 
 #[derive(Debug)]
 pub struct Query {
@@ -59,7 +59,7 @@ impl Query {
 }
 
 impl Display for Query {
-    fn fmt(&self, formatter: &mut Formatter ) -> Result<(), Error> {
+    fn fmt(&self, formatter: &mut Formatter ) -> Result<(), fmt::Error> {
         try!(writeln!(formatter, "{:?}", self.data));
         Ok(())
     }
@@ -69,37 +69,34 @@ impl Display for Query {
 pub struct Request {
     http_version: String,
     method: String,
-    scheme: Scheme,
+    scheme: String,
     path: String,
-    query: Option<Query>,
+    query: Query,
     content_length: Option<u64>,
     headers: Headers,
-    stream: TcpStream,
+    stream: BufReader<TcpStream>,
 }
 
 impl Request {
-    pub fn new(version: &str,
-           method: &str,
-           path: &str,
-           query: Option<&str>,
-           headers: Headers,
-           stream: TcpStream) -> Request {
+    pub fn create(stream: TcpStream) -> io::Result<Request> {
+        let mut buf_reader = BufReader::new(stream);
+        let (version, method, path, query, headers) = try!(parser::parse_request(&mut buf_reader));
 
         let query = match query {
-            Some(q) => Some(Query::parse(q)),
-            None => None,
+            Some(q) => Query::parse(&q),
+            None => Query::new(),
         };
 
-        Request {
+        Ok(Request {
             http_version: version.to_owned(),
             method: method.to_owned(),
-            scheme: Scheme::Http,
+            scheme: "http".to_owned(),
             path: path.to_owned(),
             query: query,
             content_length: None,
             headers: headers,
-            stream: stream
-        }
+            stream: buf_reader,
+        })
     }
 
     pub fn http_version(&self) -> &str {
@@ -110,15 +107,15 @@ impl Request {
         self.method.as_ref()
     }
 
-    pub fn scheme(&self) -> Scheme {
-        self.scheme
+    pub fn scheme(&self) -> &str {
+        &self.scheme
     }
 
     pub fn path(&self) -> &str {
         &self.path
     }
 
-    pub fn query(self) -> Option<Query> {
+    pub fn query(self) -> Query {
         self.query
     }
 
@@ -131,13 +128,13 @@ impl Request {
     }
 
     pub fn local_addr(&self) -> SocketAddr {
-        self.stream.local_addr().unwrap()
+        self.stream.get_ref().local_addr().unwrap()
     }
 }
 
 impl Display for Request {
-    fn fmt(&self, formatter: &mut Formatter ) -> Result<(), Error> {
-        try!(writeln!(formatter, "{:?} {:?} {:?}", self.method, self.path, self.http_version));
+    fn fmt(&self, formatter: &mut Formatter ) -> Result<(), fmt::Error> {
+        try!(writeln!(formatter, "{} {} {}", self.method, self.path, self.http_version));
         try!(write!(formatter, "Query: {:?}", self.query));
         try!(write!(formatter, "Headers: {}", self.headers));
 

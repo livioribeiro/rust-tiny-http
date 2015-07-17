@@ -1,10 +1,12 @@
 use std::any::Any;
 use std::fs::{self, File, Metadata};
-use std::io::{Read, Write, Error, ErrorKind};
+use std::io::{self, Write, Error, ErrorKind};
 use std::marker::PhantomData;
+use std::net::Shutdown;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use time;
 use conduit_mime_types::Types;
 
 use super::{Request, Response};
@@ -16,7 +18,7 @@ pub trait Handler {
     fn handle(&self, req: &mut Request, res: &mut Response);
 }
 
-pub struct ServerHandler<K: Any = File> {
+pub struct ServerHandler<K: Any = FileKind> {
     root: PathBuf,
     mimetypes: Types,
     _kind: PhantomData<K>,
@@ -52,34 +54,41 @@ impl<K: Any> ServerHandler<K> {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
+        let date = time::now_utc();
+
+        res.with_header("Date", format!("{}", date.rfc822()).as_ref());
         res.with_header("Connection", "close");
         res.with_header("Content-Type", mime);
         res.with_header("Content-Length", &metadata.len().to_string());
 
-        res.start().unwrap();
-        let mut buf: [u8; 4096] = [0; 4096];
-        loop {
-            match f.read(&mut buf) {
-                Ok(bytes_read) => {
-                    if bytes_read == 0 {
-                        break;
-                    }
-                    res.write(&buf[0..bytes_read]).unwrap();
-                },
-                Err(e) => panic!(e)
-            }
-        }
+        let res = res.start().unwrap();
+        io::copy(&mut f, res).unwrap();
+
+        // let mut buf: [u8; 4096] = [0; 4096];
+        // loop {
+        //     match f.read(&mut buf) {
+        //         Ok(bytes_read) => {
+        //             if bytes_read == 0 {
+        //                 break;
+        //             }
+        //             res.write(&buf[0..bytes_read]).unwrap();
+        //         },
+        //         Err(e) => panic!(e)
+        //     }
+        // }
     }
 
     fn send_not_found(&self, res: &mut Response) {
         res.with_status(404, "Not Found");
-        res.start().ok().expect("Failed to send error response");
+        let res = res.start().unwrap();
+        res.write("404 - Not Found".as_bytes()).unwrap();
         res.flush().ok().expect("Failed to send error response");
     }
 
     fn send_error(&self, res: &mut Response) {
-        res.with_status(500, "Internal Server Error");
-        res.start().ok().expect("Failed to send error response");
+        res.with_status(404, "Not Found");
+        let res = res.start().unwrap();
+        res.write("404 - Not Found".as_bytes()).unwrap();
         res.flush().ok().expect("Failed to send error response");
     }
 }
@@ -145,7 +154,7 @@ impl Handler for ServerHandler<DirectoryKind> {
             path = "";
         }
 
-        res.start().unwrap();
+        let res = res.start().unwrap();
         res.write("<html><body><ul>".as_bytes()).unwrap();
         for name in s.split('\n') {
             if name.len() == 0 { continue }

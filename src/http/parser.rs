@@ -1,17 +1,16 @@
-use std::error::Error;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
 
-use super::request::Request;
 use super::headers::Headers;
 
-pub fn parse_request(stream: TcpStream) -> Result<Request, Box<Error>> {
-    let mut buf_reader = BufReader::new(stream.try_clone().ok().expect("Failed to clone parsing stream"));
+pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
+        -> io::Result<(String, String, String, Option<String>, Headers)> {
+
     let mut line = String::new();
 
     buf_reader.read_line(&mut line).ok().expect("Failed to read request line");
     if line.is_empty() {
-        return Err(Box::new(io::Error::new(io::ErrorKind::Other, "bad request")));
+        return Err(Error::new(ErrorKind::Other, "bad request"));
     }
 
     let first_line: Vec<_> = line.split(' ').collect();
@@ -21,10 +20,10 @@ pub fn parse_request(stream: TcpStream) -> Result<Request, Box<Error>> {
     let version = version[1];
 
     let path_query: Vec<_> = first_line[1].split("?").collect();
-    let path = path_query[0];
-    let query: Option<&str>;
+    let path = path_query[0].to_owned();
+    let query: Option<String>;
     if path_query.len() > 1 {
-        query = Some(path_query[1]);
+        query = Some(path_query[1].to_owned());
     }
     else {
         query = None;
@@ -44,5 +43,5 @@ pub fn parse_request(stream: TcpStream) -> Result<Request, Box<Error>> {
         }
     }
 
-    Ok(Request::new(version, method, path, query, headers, stream))
+    Ok((version.to_owned(), method.to_owned(), path.to_owned(), query, headers))
 }

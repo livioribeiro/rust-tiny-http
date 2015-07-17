@@ -4,7 +4,6 @@ use std::thread;
 
 use super::{Request, Response};
 use super::handler::Handler;
-use super::parser;
 
 #[allow(dead_code)]
 pub struct HttpServer {
@@ -31,7 +30,7 @@ impl HttpServer {
                     let handler = arc.clone();
 
                     thread::spawn(move || {
-                        let mut request = match parser::parse_request(stream.try_clone().ok().expect("Failed to clone request stream")) {
+                        let mut request = match Request::create(stream.try_clone().ok().expect("Failed to clone request stream")) {
                             Ok(request) => request,
                             Err(error) => panic!(format!("Failed to parse request: {}", error)),
                         };

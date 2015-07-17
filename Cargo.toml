@@ -4,6 +4,5 @@ version = "0.1.0"
 authors = ["Livio Ribeiro <livioribeiro@outlook.com>"]
 
 [dependencies]
-conduit = "^0.7"
+time = "^0.1"
 conduit-mime-types = "^0.7"
-semver = "^0.1"

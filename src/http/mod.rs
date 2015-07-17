@@ -4,3 +4,4 @@ pub mod response;
 pub mod server;
 mod parser;
 mod headers;
+mod query;

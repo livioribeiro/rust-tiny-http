@@ -1,3 +1,4 @@
+extern crate regex;
 extern crate conduit_mime_types;
 
 pub use self::http::server::HttpServer;

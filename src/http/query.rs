@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use regex::Regex;
+
 #[derive(Debug)]
 pub struct Query {
     data: HashMap<String, Vec<String>>,
@@ -20,13 +22,13 @@ impl Query {
             return query;
         }
 
-        for q in query_string.split("&") {
-            let key_value: Vec<_> = q.split("=").collect();
-            let key = key_value[0];
-            let value = key_value[1];
-
-            let mut query_vec = query.data.entry(key.to_string()).or_insert(Vec::new());
-            query_vec.push(value.to_string());
+        let re = Regex::new(r"([^=&]+)(=([^&]*))?").unwrap();
+        for cap in re.captures_iter(query_string) {
+            let key = cap.at(1).unwrap();
+            // TODO: Decode query string (see this http://unixpapa.com/js/querystring.html)
+            let val = cap.at(3).unwrap_or("");
+            let mut query_vec = query.data.entry(key.to_owned()).or_insert(Vec::new());
+            query_vec.push(val.to_owned());
         }
 
         query

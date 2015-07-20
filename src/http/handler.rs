@@ -5,9 +5,10 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use conduit::Request;
 use conduit_mime_types::Types;
 
-use ::{Request, Response};
+use ::{Response};
 
 pub struct FileMode;
 pub struct DirectoryMode;
@@ -49,7 +50,7 @@ impl<M: Any> ServerHandler<M> {
         Ok((resource, metadata))
     }
 
-    fn send_file(&self, resource: PathBuf, metadata: Metadata, res: &mut Response) {
+    fn send_file(&self, resource: &PathBuf, metadata: &Metadata, res: &mut Response) {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
@@ -108,7 +109,7 @@ impl Handler for ServerHandler<FileMode> {
             return;
         }
 
-        self.send_file(resource, metadata, res);
+        self.send_file(&resource, &metadata, res);
     }
 }
 
@@ -127,7 +128,7 @@ impl Handler for ServerHandler<DirectoryMode> {
         };
 
         if metadata.is_file() {
-            self.send_file(resource, metadata, res);
+            self.send_file(&resource, &metadata, res);
             return;
         }
 
@@ -144,7 +145,7 @@ impl Handler for ServerHandler<DirectoryMode> {
             panic!("rustc failed and stderr was:\n{}", s);
         }
 
-        let mut path = req.path();
+        let mut path = req.path::<'a>();
         if path.len() == 1 && path == "/" {
             path = "";
         }

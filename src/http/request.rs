@@ -1,79 +1,112 @@
-use std::fmt::{self, Display, Formatter};
-use std::io::{self, BufReader};
-use std::net::{TcpStream, SocketAddr};
+use std::error::Error;
+use std::io::{BufReader, Read};
+use std::net::{SocketAddr, TcpStream};
+use std::str::FromStr;
+
+use conduit::Request as ConduitRequest;
+use conduit::Headers as ConduitHeaders;
+use conduit::{self, Host, Method, Scheme};
+use semver::Version;
 
 use super::headers::Headers;
 use super::parser;
 use super::query::Query;
 
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct Request {
-    http_version: String,
-    method: String,
-    scheme: String,
+    http_version: Version,
+    method: Method,
+    scheme: Scheme,
     path: String,
     query: Query,
     headers: Headers,
     content_length: Option<u64>,
     stream: BufReader<TcpStream>,
+    extensions: conduit::Extensions,
 }
 
 impl Request {
-    pub fn from_stream(stream: TcpStream) -> io::Result<Request> {
+    pub fn from_stream(stream: TcpStream) -> Result<Request, Box<Error>> {
         let mut buf_reader = BufReader::new(stream);
         let (version, method, path, query, headers) = try!(parser::parse_request(&mut buf_reader));
 
+        let mut content_length: Option<u64>;
+        {
+            let header: Option<Vec<&str>> = headers.find("Content-Length");
+            content_length = match header {
+                Some(l) => Some(try!(u64::from_str(l[0]))),
+                None => None,
+            };
+        }
+
         Ok(Request {
-            http_version: version.to_owned(),
-            method: method.to_owned(),
-            scheme: "http".to_owned(),
-            path: path.to_owned(),
+            http_version: version,
+            method: method,
+            scheme: Scheme::Http,
+            path: path,
             query: query,
-            content_length: None,
+            content_length: content_length,
             headers: headers,
             stream: buf_reader,
+            extensions: conduit::Extensions::new(),
         })
-    }
-
-    pub fn http_version(&self) -> &str {
-        &self.http_version
-    }
-
-    pub fn method(&self) -> &str {
-        self.method.as_ref()
-    }
-
-    pub fn scheme(&self) -> &str {
-        &self.scheme
-    }
-
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    pub fn query(&self) -> &Query {
-        &self.query
-    }
-
-    pub fn content_length(&self) -> Option<u64> {
-        self.content_length
-    }
-
-    pub fn headers(&self) -> &Headers {
-        &self.headers
-    }
-
-    pub fn local_addr(&self) -> SocketAddr {
-        self.stream.get_ref().local_addr().unwrap()
     }
 }
 
-impl Display for Request {
-    fn fmt(&self, formatter: &mut Formatter ) -> Result<(), fmt::Error> {
-        try!(writeln!(formatter, "{} {} {}", self.method, self.path, self.http_version));
-        try!(write!(formatter, "Query: {}", self.query.to_string()));
-        try!(write!(formatter, "Headers: {}", self.headers.to_string()));
+impl ConduitRequest for Request {
+    fn http_version(&self) -> Version {
+        Version::parse("1.0.0").unwrap()
+    }
 
-        Ok(())
+    fn conduit_version(&self) -> Version {
+        Version::parse("1.0.0").unwrap()
+    }
+
+    fn method(&self) -> Method {
+        Method::Get
+    }
+
+    fn scheme(&self) -> Scheme {
+        Scheme::Http
+    }
+
+    fn host<'a>(&'a self) -> Host<'a> {
+        Host::Socket(self.stream.get_ref().local_addr().unwrap())
+    }
+
+    fn virtual_root<'a>(&'a self) -> Option<&'a str> {
+        None
+    }
+
+    fn path<'a>(&'a self) -> &'a str {
+        self.path.as_ref()
+    }
+
+    fn query_string<'a>(&'a self) -> Option<&'a str> {
+        self.query.query_string()
+    }
+
+    fn remote_addr(&self) -> SocketAddr {
+        self.stream.get_ref().peer_addr().unwrap()
+    }
+
+    fn content_length(&self) -> Option<u64> {
+        self.content_length
+    }
+
+    fn headers<'a>(&'a self) -> &'a conduit::Headers {
+        &self.headers
+    }
+
+    fn body<'a>(&'a mut self) -> &'a mut Read {
+        &mut self.stream
+    }
+
+    fn extensions<'a>(&'a self) -> &'a conduit::Extensions {
+        &self.extensions
+    }
+
+    fn mut_extensions<'a>(&'a mut self) -> &'a mut conduit::Extensions {
+        &mut self.extensions
     }
 }

@@ -3,8 +3,10 @@ name = "http-server"
 version = "0.1.0"
 dependencies = [
  "argparse 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "conduit 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "conduit-mime-types 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -19,6 +21,14 @@ dependencies = [
 name = "argparse"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "conduit"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "semver 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "conduit-mime-types"
@@ -59,5 +69,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rustc-serialize"
 version = "0.3.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "semver"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 

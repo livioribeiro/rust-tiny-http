@@ -1,14 +1,16 @@
+use std::error::Error;
 use std::io::{self, BufRead, BufReader, ErrorKind};
 use std::net::TcpStream;
 
+use conduit::Method;
 use regex::Regex;
+use semver::Version;
 
 use super::headers::Headers;
 use super::query::Query;
 
-// TODO: Add fragment (#) support
 pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
-        -> io::Result<(String, String, String, Query, Headers)> {
+        -> Result<(Version, Method, String, Query, Headers), Box<Error>> {
 
     let mut request_line = String::new();
 
@@ -28,7 +30,32 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
             };
             (method, path, version, query)
         },
-        None => return Err(malformed_request_error),
+        None => return Err(Box::new(malformed_request_error)),
+    };
+
+    let method = match method {
+        "GET" => Method::Get,
+        "POST" => Method::Post,
+        "PUT" => Method::Put,
+        "DELETE" => Method::Delete,
+        "HEAD" => Method::Head,
+        "CONNECT" => Method::Connect,
+        "OPTIONS" => Method::Options,
+        "TRACE" => Method::Trace,
+        "PATCH" => Method::Patch,
+        "PURGE" => Method::Purge,
+        _ => Method::Other("UNKNOWN"),
+    };
+
+    let version = match version {
+        "1.0" => Version::parse("1.0.0").unwrap(),
+        "1.1" => Version::parse("1.1.0").unwrap(),
+        "2.0" => Version::parse("2.0.0").unwrap(),
+        _ => {
+            let mut v = version.to_string();
+            v.push_str(".0");
+            try!(Version::parse(v.as_ref()))
+        },
     };
 
     let mut headers = Headers::new();
@@ -41,9 +68,9 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
                 }
                 headers.parse(&l);
             },
-            Err(e) => return Err(e),
+            Err(e) => return Err(Box::new(e)),
         }
     }
 
-    Ok((version.to_owned(), method.to_owned(), path.to_owned(), query, headers))
+    Ok((version, method, path.to_owned(), query, headers))
 }

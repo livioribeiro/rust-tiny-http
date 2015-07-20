@@ -1,5 +1,7 @@
-extern crate regex;
+extern crate conduit;
 extern crate conduit_mime_types;
+extern crate regex;
+extern crate semver;
 
 pub use self::http::server::HttpServer;
 pub use self::http::request::Request;

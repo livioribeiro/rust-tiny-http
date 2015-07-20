@@ -5,6 +5,7 @@ use regex::Regex;
 #[derive(Debug)]
 pub struct Query {
     data: HashMap<String, Vec<String>>,
+    query_string: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -12,26 +13,28 @@ impl Query {
     pub fn new() -> Query {
         Query {
             data: HashMap::<String, Vec<String>>::new(),
+            query_string: None
         }
     }
 
     pub fn from_str(query_string: &str) -> Query {
-        let mut query = Query::new();
+        let mut data = HashMap::<String, Vec<String>>::new();
 
-        if query_string.trim().len() == 0 {
-            return query;
+        if query_string.trim().len() > 0 {
+            let re = Regex::new(r"([^=&]+)(=([^&]*))?").unwrap();
+            for cap in re.captures_iter(query_string) {
+                let key = cap.at(1).unwrap();
+                // TODO: Decode query string (see this http://unixpapa.com/js/querystring.html)
+                let val = cap.at(3).unwrap_or("");
+                let mut query_vec = data.entry(key.to_owned()).or_insert(Vec::new());
+                query_vec.push(val.to_owned());
+            }
         }
 
-        let re = Regex::new(r"([^=&]+)(=([^&]*))?").unwrap();
-        for cap in re.captures_iter(query_string) {
-            let key = cap.at(1).unwrap();
-            // TODO: Decode query string (see this http://unixpapa.com/js/querystring.html)
-            let val = cap.at(3).unwrap_or("");
-            let mut query_vec = query.data.entry(key.to_owned()).or_insert(Vec::new());
-            query_vec.push(val.to_owned());
+        Query {
+            data: data,
+            query_string: None,
         }
-
-        query
     }
 
     pub fn get(&self, name: &str) -> Option<Vec<String>> {
@@ -45,6 +48,13 @@ impl Query {
                 }
             },
             None => None
+        }
+    }
+
+    pub fn query_string(&self) -> Option<&str> {
+        match self.query_string {
+            Some(ref s) => Some(s),
+            None => None,
         }
     }
 }

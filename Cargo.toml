@@ -9,3 +9,8 @@ semver = "^0.1"
 conduit = "^0.7"
 conduit-mime-types = "^0.7"
 argparse = "*"
+
+[[bin]]
+name = "server-bin"
+path = "src/bin.rs"
+doc = false

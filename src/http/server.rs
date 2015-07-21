@@ -5,6 +5,24 @@ use std::thread;
 use ::{Request, Response};
 use ::handler::Handler;
 
+/// Server that listen for connections on given address
+///
+/// The server will listen for connections on the given address,
+/// create the request and response objects and pass them to the
+/// handler to process the request
+///
+/// #Examples
+///
+/// ```
+/// use std::env;
+/// use http_server::HttpServer;
+/// use http_server::handler::{ServerHandler, FileMode};
+/// 
+/// let root = env::home_dir().unwrap();
+/// let handler = ServerHandler::<FileMode>::new(&root);
+/// let server = HttpServer::new("127.0.0.1:9000");
+///
+/// ```
 #[allow(dead_code)]
 pub struct HttpServer {
     addr: String,
@@ -12,6 +30,7 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
+    /// Creates a new instance of HttpServer
     pub fn new(addr: &str) -> HttpServer {
         let listener = TcpListener::bind(addr).ok().expect(format!("Could not bind to address {}", addr).as_ref());
 

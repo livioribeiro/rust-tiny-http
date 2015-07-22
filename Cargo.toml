@@ -12,5 +12,5 @@ argparse = "*"
 
 [[bin]]
 name = "server-bin"
-path = "src/bin.rs"
+path = "src/main.rs"
 doc = false

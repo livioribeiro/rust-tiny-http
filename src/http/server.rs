@@ -49,6 +49,7 @@ impl HttpServer {
     /// #Examples
     ///
     /// ```
+    /// #![allow(dead_code)]
     /// # use std::env;
     /// # use std::sync::Arc;
     /// # use std::thread; 

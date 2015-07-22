@@ -1,4 +1,6 @@
 # tiny-http-server
+[![Build Status](https://travis-ci.org/livioribeiro/rust-tiny-http.svg?branch=master)](https://travis-ci.org/livioribeiro/rust-tiny-http)
+
 Small http server written in rust
 
 This is an experiment I started to learn the Rust language.

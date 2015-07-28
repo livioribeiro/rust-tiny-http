@@ -80,6 +80,7 @@ impl ToString for Headers {
 
             result.push_str("\r\n");
         }
+        
         result
     }
 }

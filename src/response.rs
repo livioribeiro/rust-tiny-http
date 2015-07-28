@@ -21,7 +21,7 @@ impl Response {
         let stream = try!(stream.try_clone());
 
         Ok(Response {
-            http_version: "1.1".to_owned(),
+            http_version: "1.0".to_owned(),
             status: 200,
             status_text: "OK".to_owned(),
             headers: Headers::new(),
@@ -86,7 +86,7 @@ impl Response {
         let status_line = format!("HTTP/{} {} {}\r\n", self.http_version, self.status, self.status_text);
         try!(self.stream.write(status_line.as_bytes()));
 
-        try!(self.stream.write(format!("{}\r\n", self.headers.to_string()).as_bytes()));
+        try!(self.stream.write(format!("{}", self.headers.to_string()).as_bytes()));
         try!(self.stream.write(b"\r\n"));
 
         Ok(&mut self.stream)

@@ -1,5 +1,8 @@
+use std::error::Error;
 use std::io::{self, Write, BufWriter};
 use std::net::{TcpStream};
+
+use time;
 
 use super::headers::Headers;
 
@@ -14,15 +17,17 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new(stream: TcpStream) -> Response {
-        Response {
-            http_version: "1.0".to_string(),
+    pub fn from_stream(stream: &TcpStream) -> Result<Response, Box<Error>> {
+        let stream = try!(stream.try_clone());
+
+        Ok(Response {
+            http_version: "1.1".to_owned(),
             status: 200,
-            status_text: "OK".to_string(),
+            status_text: "OK".to_owned(),
             headers: Headers::new(),
             stream: BufWriter::new(stream),
             headers_written: false,
-        }
+        })
     }
 
     pub fn http_version(&self) -> &str {
@@ -60,7 +65,7 @@ impl Response {
         self
     }
 
-    pub fn with_header(&mut self, name: &'static str, value: &str) -> &mut Self {
+    pub fn with_header(&mut self, name: &str, value: &str) -> &mut Self {
         if self.headers_written {
             panic!("Cannot write header to started response")
         }
@@ -73,14 +78,16 @@ impl Response {
             panic!("Response already started");
         }
 
+        self.with_header("Date", &time::now_utc().rfc822().to_string())
+            .with_header("Connection", "close");
+
         self.headers_written = true;
 
         let status_line = format!("HTTP/{} {} {}\r\n", self.http_version, self.status, self.status_text);
         try!(self.stream.write(status_line.as_bytes()));
 
-        let headers = self.headers.clone();
-        try!(self.stream.write(format!("{}\r\n", headers.to_string()).as_bytes()));
-        try!(self.stream.write("\r\n".as_bytes()));
+        try!(self.stream.write(format!("{}\r\n", self.headers.to_string()).as_bytes()));
+        try!(self.stream.write(b"\r\n"));
 
         Ok(&mut self.stream)
     }

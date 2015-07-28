@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Livio Ribeiro <livioribeiro@outlook.com>"]
 
 [dependencies]
+time = "^0.1"
 regex = "^0.1"
 semver = "^0.1"
 conduit = "^0.7"

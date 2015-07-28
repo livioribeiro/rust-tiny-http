@@ -8,13 +8,13 @@ use std::process::Command;
 use conduit::Request;
 use conduit_mime_types::Types;
 
-use ::{Response};
+use ::response::Response;
 
 pub struct FileMode;
 pub struct DirectoryMode;
 
 pub trait Handler {
-    fn handle(&self, req: &mut Request, res: &mut Response);
+    fn handle_request(&self, req: &mut Request, res: &mut Response);
 }
 
 #[derive(Debug)]
@@ -54,8 +54,7 @@ impl<M: Any> ServerHandler<M> {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
-        res.with_header("Connection", "close")
-            .with_header("Content-Type", mime)
+        res.with_header("Content-Type", mime)
             .with_header("Content-Length", &metadata.len().to_string());
 
         let res = res.start().unwrap();
@@ -91,7 +90,7 @@ impl<M: Any> ServerHandler<M> {
 }
 
 impl Handler for ServerHandler<FileMode> {
-    fn handle(&self, req: &mut Request, res: &mut Response) {
+    fn handle_request(&self, req: &mut Request, res: &mut Response) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {
@@ -114,7 +113,7 @@ impl Handler for ServerHandler<FileMode> {
 }
 
 impl Handler for ServerHandler<DirectoryMode> {
-    fn handle(&self, req: &mut Request, res: &mut Response) {
+    fn handle_request(&self, req: &mut Request, res: &mut Response) {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {

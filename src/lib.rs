@@ -2,6 +2,7 @@ extern crate conduit;
 extern crate conduit_mime_types;
 extern crate regex;
 extern crate semver;
+extern crate time;
 
 pub use server::HttpServer;
 pub use request::Request;

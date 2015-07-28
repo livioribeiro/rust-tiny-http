@@ -30,7 +30,7 @@ impl Headers {
 
     pub fn insert(&mut self, name: &str, value: &str) {
         let mut vec = self.data.entry(name.to_owned()).or_insert(Vec::<String>::new());
-        vec.push(value.to_string());
+        vec.push(value.to_owned());
     }
 }
 
@@ -74,9 +74,11 @@ impl ToString for Headers {
                 None => return result,
             }
 
-            for i in vec {
-                format!(", {}", i);
+            for i in iter {
+                result.push_str(&format!(", {}", i));
             }
+
+            result.push_str("\r\n");
         }
         result
     }

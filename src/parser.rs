@@ -10,15 +10,21 @@ use super::headers::Headers;
 use super::query::Query;
 
 pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
-        -> Result<(Version, Method, String, Query, Headers), Box<Error>> {
+        -> Result<Option<(Version, Method, String, Query, Headers)>, Box<Error>> {
 
     let mut request_line = String::new();
+    let bytes_read = try!(buf_reader.read_line(&mut request_line));
 
-    try!(buf_reader.read_line(&mut request_line));
+    if bytes_read == 0 || request_line.is_empty() {
+        return Ok(None);
+    }
 
     let malformed_request_error = io::Error::new(ErrorKind::InvalidInput, "Malformed Request");
 
-    let re = Regex::new(r"^(?P<method>[A-Z]*?) (?P<path>[^\?]+)(\?(?P<query>.*?))? HTTP/(?P<version>\d\.\d)\r\n$").unwrap();
+    let re = Regex::new(
+        r"^(?P<method>[A-Z]*?) (?P<path>[^\?]+)(\?(?P<query>.*?))? HTTP/(?P<version>\d\.\d)\r\n$"
+    ).unwrap();
+
     let (method, path, version, query) = match re.captures(&request_line) {
         Some(cap) => {
             let method = cap.name("method").unwrap();
@@ -72,5 +78,5 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
         }
     }
 
-    Ok((version, method, path.to_owned(), query, headers))
+    Ok(Some((version, method, path.to_owned(), query, headers)))
 }

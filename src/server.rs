@@ -2,7 +2,8 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
-use ::{Request, Response};
+use ::response::Response;
+use ::request::RequestStream;
 use ::handler::Handler;
 
 /// Server that listen for connections on given address
@@ -17,7 +18,7 @@ use ::handler::Handler;
 /// use std::env;
 /// use http_server::HttpServer;
 /// use http_server::handler::{ServerHandler, FileMode};
-/// 
+///
 /// let root = env::home_dir().unwrap();
 /// let handler = ServerHandler::<FileMode>::new(&root);
 /// let server = HttpServer::new("127.0.0.1:9000");
@@ -39,7 +40,7 @@ impl HttpServer {
             listener: listener,
         }
     }
-    
+
     /// Start the server with the given handler
     ///
     /// When started, the server will block and listen for connections,
@@ -52,12 +53,12 @@ impl HttpServer {
     /// #![allow(dead_code)]
     /// # use std::env;
     /// # use std::sync::Arc;
-    /// # use std::thread; 
+    /// # use std::thread;
     /// use http_server::HttpServer;
     /// # use http_server::handler::{ServerHandler, FileMode};
-    /// 
+    ///
     /// # let root = env::home_dir().unwrap();
-    /// let server = HttpServer::new("127.0.0.1:9000"); 
+    /// let server = HttpServer::new("127.0.0.1:9000");
     /// # let arc = Arc::new(server);
     /// # let server = arc.clone();
     /// # thread::spawn(move || {
@@ -74,9 +75,14 @@ impl HttpServer {
                     let handler = arc.clone();
 
                     thread::spawn(move || {
-                        let mut request = Request::from_stream(stream.try_clone().unwrap()).unwrap();
-                        let mut response = Response::new(stream.try_clone().ok().expect("Failed to clone response stream"));
-                        handler.handle(&mut request, &mut response);
+                        let mut request_stream = RequestStream::from_stream(&stream).unwrap();
+
+                        let mut request = match request_stream.requests().next() {
+                            Some(request) => request,
+                            None => return,
+                        };
+                        let mut response = Response::from_stream(&stream).unwrap();
+                        handler.handle_request(&mut request, &mut response);
                     });
                 },
                 Err(error) => panic!(error),

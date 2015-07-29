@@ -1,9 +1,6 @@
 use std::collections::HashMap;
-use std::clone;
 
-use conduit::Headers as ConduitHeaders;
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Headers {
     data: HashMap<String, Vec<String>>,
 }
@@ -32,10 +29,8 @@ impl Headers {
         let mut vec = self.data.entry(name.to_owned()).or_insert(Vec::<String>::new());
         vec.push(value.to_owned());
     }
-}
 
-impl ConduitHeaders for Headers {
-    fn find(&self, key: &str) -> Option<Vec<&str>> {
+    pub fn find(&self, key: &str) -> Option<Vec<&str>> {
         match self.data.get(key) {
             Some(vec) => {
                 if vec.is_empty() {
@@ -49,11 +44,11 @@ impl ConduitHeaders for Headers {
         }
     }
 
-    fn has(&self, key: &str) -> bool {
+    pub fn has(&self, key: &str) -> bool {
         self.data.contains_key(key)
     }
 
-    fn all(&self) -> Vec<(&str, Vec<&str>)> {
+    pub fn all(&self) -> Vec<(&str, Vec<&str>)> {
         let vec = self.data.iter().map(|(key, values)| {
             let header_vec: Vec<&str> = values.iter().map(|x| x.as_ref()).collect();
             (key.as_ref(), header_vec)
@@ -80,15 +75,7 @@ impl ToString for Headers {
 
             result.push_str("\r\n");
         }
-        
-        result
-    }
-}
 
-impl clone::Clone for Headers {
-    fn clone(&self) -> Self {
-        Headers {
-            data: self.data.clone()
-        }
+        result
     }
 }

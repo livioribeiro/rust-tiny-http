@@ -5,10 +5,10 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use conduit::Request;
 use conduit_mime_types::Types;
 
 use ::response::Response;
+use ::request::Request;
 
 pub struct FileMode;
 pub struct DirectoryMode;
@@ -81,10 +81,10 @@ impl<M: Any> ServerHandler<M> {
         res.flush().ok().expect("Failed to send error response");
     }
 
-    fn send_error(&self, res: &mut Response) {
-        res.with_status(404, "Not Found");
+    fn send_error(&self, res: &mut Response, status: i32, description: &str) {
+        res.with_status(status, description);
         let res = res.start().unwrap();
-        res.write("404 - Not Found".as_bytes()).unwrap();
+        res.write(format!("{} - {}", status, description).as_bytes()).unwrap();
         res.flush().ok().expect("Failed to send error response");
     }
 }
@@ -97,7 +97,7 @@ impl Handler for ServerHandler<FileMode> {
                 if e.kind() == ErrorKind::NotFound {
                     self.send_not_found(res);
                 } else {
-                    self.send_error(res);
+                    self.send_error(res, 500, "Internal Server Error");
                 }
                 return;
             }
@@ -120,7 +120,7 @@ impl Handler for ServerHandler<DirectoryMode> {
                 if e.kind() == ErrorKind::NotFound {
                     self.send_not_found(res);
                 } else {
-                    self.send_error(res);
+                    self.send_error(res, 500, "Internal Server Error");
                 }
                 return;
             }
@@ -144,9 +144,12 @@ impl Handler for ServerHandler<DirectoryMode> {
             panic!("rustc failed and stderr was:\n{}", s);
         }
 
-        let mut path = req.path::<'a>();
+        let mut path = req.path().to_owned();
         if path.len() == 1 && path == "/" {
-            path = "";
+            path.clear();
+        }
+        else if path.len() > 1 && !path.ends_with("/") {
+            path.push('/');
         }
 
         res.with_header("Content-Type", "text/html");

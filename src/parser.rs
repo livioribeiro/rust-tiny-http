@@ -2,15 +2,13 @@ use std::error::Error;
 use std::io::{self, BufRead, BufReader, ErrorKind};
 use std::net::TcpStream;
 
-use conduit::Method;
 use regex::Regex;
-use semver::Version;
 
 use super::headers::Headers;
 use super::query::Query;
 
 pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
-        -> Result<Option<(Version, Method, String, Query, Headers)>, Box<Error>> {
+        -> Result<Option<(String, String, String, Option<Query>, Headers)>, Box<Error>> {
 
     let mut request_line = String::new();
     let bytes_read = try!(buf_reader.read_line(&mut request_line));
@@ -30,38 +28,10 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
             let method = cap.name("method").unwrap();
             let path = cap.name("path").unwrap();
             let version = cap.name("version").unwrap();
-            let query = match cap.name("query") {
-                Some(q) => Query::from_str(q),
-                None => Query::new(),
-            };
+            let query = cap.name("query").map(|q| Query::from_str(q));
             (method, path, version, query)
         },
         None => return Err(Box::new(malformed_request_error)),
-    };
-
-    let method = match method {
-        "GET" => Method::Get,
-        "POST" => Method::Post,
-        "PUT" => Method::Put,
-        "DELETE" => Method::Delete,
-        "HEAD" => Method::Head,
-        "CONNECT" => Method::Connect,
-        "OPTIONS" => Method::Options,
-        "TRACE" => Method::Trace,
-        "PATCH" => Method::Patch,
-        "PURGE" => Method::Purge,
-        _ => Method::Other("UNKNOWN"),
-    };
-
-    let version = match version {
-        "1.0" => Version::parse("1.0.0").unwrap(),
-        "1.1" => Version::parse("1.1.0").unwrap(),
-        "2.0" => Version::parse("2.0.0").unwrap(),
-        _ => {
-            let mut v = version.to_string();
-            v.push_str(".0");
-            try!(Version::parse(v.as_ref()))
-        },
     };
 
     let mut headers = Headers::new();
@@ -78,5 +48,5 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
         }
     }
 
-    Ok(Some((version, method, path.to_owned(), query, headers)))
+    Ok(Some((version.to_owned(), method.to_owned(), path.to_owned(), query, headers)))
 }

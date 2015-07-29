@@ -2,11 +2,6 @@ use std::io::{self, BufReader, Read};
 use std::net::{SocketAddr, TcpStream};
 use std::str::FromStr;
 
-use conduit::Request as ConduitRequest;
-use conduit::Headers as ConduitHeaders;
-use conduit::{self, Host, Method, Scheme};
-use semver::Version;
-
 use super::headers::Headers;
 use super::parser;
 use super::query::Query;
@@ -44,12 +39,11 @@ impl RequestStream {
         Some(Request {
             http_version: version,
             method: method,
-            scheme: Scheme::Http,
+            scheme: "Http".to_owned(),
             path: path,
             query: query,
             content_length: content_length,
             headers: headers,
-            extensions: conduit::Extensions::new(),
             stream: self.stream.get_ref().try_clone().unwrap(),
         })
     }
@@ -69,71 +63,54 @@ impl<'a> Iterator for RequestStreamIterMut<'a> {
 
 #[allow(dead_code)]
 pub struct Request {
-    http_version: Version,
-    method: Method,
-    scheme: Scheme,
+    http_version: String,
+    method: String,
+    scheme: String,
     path: String,
-    query: Query,
+    query: Option<Query>,
     headers: Headers,
     content_length: Option<u64>,
-    extensions: conduit::Extensions,
     stream: TcpStream,
 }
 
-impl ConduitRequest for Request {
-    fn http_version(&self) -> Version {
-        Version::parse("1.0.0").unwrap()
+impl Request {
+    pub fn http_version(&self) -> &str {
+        &self.http_version
     }
 
-    fn conduit_version(&self) -> Version {
-        Version::parse("1.0.0").unwrap()
+    pub fn method(&self) -> &str {
+        &self.method
     }
 
-    fn method(&self) -> Method {
-        Method::Get
+    pub fn scheme(&self) -> &str {
+        &self.scheme
     }
 
-    fn scheme(&self) -> Scheme {
-        Scheme::Http
+    pub fn host(&self) -> SocketAddr {
+        self.stream.local_addr().unwrap()
     }
 
-    fn host<'a>(&'a self) -> Host<'a> {
-        Host::Socket(self.stream.local_addr().unwrap())
+    pub fn path(&self) -> &str {
+        &self.path
     }
 
-    fn virtual_root<'a>(&'a self) -> Option<&'a str> {
-        None
+    pub fn query(&self) -> &Option<Query> {
+        &self.query
     }
 
-    fn path<'a>(&'a self) -> &'a str {
-        self.path.as_ref()
-    }
-
-    fn query_string<'a>(&'a self) -> Option<&'a str> {
-        self.query.query_string()
-    }
-
-    fn remote_addr(&self) -> SocketAddr {
+    pub fn remote_addr(&self) -> SocketAddr {
         self.stream.peer_addr().unwrap()
     }
 
-    fn content_length(&self) -> Option<u64> {
+    pub fn content_length(&self) -> Option<u64> {
         self.content_length
     }
 
-    fn headers<'a>(&'a self) -> &'a conduit::Headers {
+    pub fn headers(&self) -> &Headers {
         &self.headers
     }
 
-    fn body<'a>(&'a mut self) -> &'a mut Read {
+    pub fn body<'a>(&'a mut self) -> &'a mut Read {
         &mut self.stream
-    }
-
-    fn extensions<'a>(&'a self) -> &'a conduit::Extensions {
-        &self.extensions
-    }
-
-    fn mut_extensions<'a>(&'a mut self) -> &'a mut conduit::Extensions {
-        &mut self.extensions
     }
 }

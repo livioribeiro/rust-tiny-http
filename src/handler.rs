@@ -152,7 +152,7 @@ impl Handler for ServerHandler<DirectoryMode> {
             path.push('/');
         }
 
-        res.with_header("Content-Type", "text/html");
+        res.with_header("Content-Type", "text/html; charset=utf-8");
 
         let res = res.start().unwrap();
 

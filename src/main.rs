@@ -2,14 +2,15 @@ extern crate http_server;
 extern crate argparse;
 
 use std::env;
-
 use argparse::{ArgumentParser, Store, StoreTrue};
 
 use http_server::HttpServer;
 use http_server::handler::{Handler, ServerHandler, FileMode, DirectoryMode};
 
+const DEFAULT_ADDR: &'static str = "127.0.0.1:9000";
+
 fn main() {
-    let mut addr = "127.0.0.1:9000".to_string();
+    let mut addr = DEFAULT_ADDR.to_owned();
     let mut dir_mode = false;
 
     {
@@ -31,6 +32,6 @@ fn main() {
         handler = Box::new(ServerHandler::<FileMode>::new(&path));
     }
 
-    let server: HttpServer = HttpServer::new(&addr);
+    let server: HttpServer = HttpServer::new(&addr, 4usize);
     server.start(handler);
 }

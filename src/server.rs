@@ -1,6 +1,6 @@
 use std::net::TcpListener;
 use std::sync::Arc;
-use std::thread;
+use threadpool::ThreadPool;
 
 use ::response::Response;
 use ::request::RequestStream;
@@ -28,16 +28,18 @@ use ::handler::Handler;
 pub struct HttpServer {
     addr: String,
     listener: TcpListener,
+    threadpool: ThreadPool,
 }
 
 impl HttpServer {
     /// Creates a new instance of HttpServer
-    pub fn new(addr: &str) -> HttpServer {
+    pub fn new(addr: &str, num_threads: usize) -> HttpServer {
         let listener = TcpListener::bind(addr).ok().expect(format!("Could not bind to address {}", addr).as_ref());
 
         HttpServer {
             addr: addr.to_string(),
             listener: listener,
+            threadpool: ThreadPool::new(num_threads),
         }
     }
 
@@ -74,7 +76,7 @@ impl HttpServer {
                 Ok(stream) => {
                     let handler = arc.clone();
 
-                    thread::spawn(move || {
+                    self.threadpool.execute(move || {
                         let mut request_stream = RequestStream::from_stream(&stream).unwrap();
 
                         let mut request = match request_stream.requests().next() {

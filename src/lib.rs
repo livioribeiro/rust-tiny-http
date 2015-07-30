@@ -1,6 +1,7 @@
 extern crate regex;
 extern crate time;
 extern crate threadpool;
+extern crate url;
 extern crate conduit_mime_types;
 
 pub use server::HttpServer;

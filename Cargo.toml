@@ -7,6 +7,7 @@ authors = ["Livio Ribeiro <livioribeiro@outlook.com>"]
 time = "^0.1"
 regex = "^0.1"
 threadpool = "^0.1"
+url = "^0.2"
 conduit-mime-types = "^0.7"
 argparse = "*"
 

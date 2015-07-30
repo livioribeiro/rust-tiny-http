@@ -1,8 +1,10 @@
 use std::error::Error;
 use std::io::{self, BufRead, BufReader, ErrorKind};
 use std::net::TcpStream;
-
 use regex::Regex;
+use url;
+use url::format::PathFormatter;
+use url::percent_encoding;
 
 use super::headers::Headers;
 use super::query::Query;
@@ -20,15 +22,15 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
     let malformed_request_error = io::Error::new(ErrorKind::InvalidInput, "Malformed Request");
 
     let re = Regex::new(
-        r"^(?P<method>[A-Z]*?) (?P<path>[^\?]+)(\?(?P<query>.*?))? HTTP/(?P<version>\d\.\d)\r\n$"
+        r"^(?P<method>[A-Z]*?) (?P<path>.*?) HTTP/(?P<version>\d\.\d)\r\n$"
     ).unwrap();
 
     let (method, path, version, query) = match re.captures(&request_line) {
         Some(cap) => {
             let method = cap.name("method").unwrap();
-            let path = cap.name("path").unwrap();
+            let (path, query, _) = url::parse_path(cap.name("path").unwrap()).unwrap();
             let version = cap.name("version").unwrap();
-            let query = cap.name("query").map(|q| Query::from_str(q));
+            let query = query.map(|q| Query::from_str(&q));
             (method, path, version, query)
         },
         None => return Err(Box::new(malformed_request_error)),
@@ -48,5 +50,12 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
         }
     }
 
-    Ok(Some((version.to_owned(), method.to_owned(), path.to_owned(), query, headers)))
+    // let path = path.iter().fold("".to_string(), |a, b| {
+    //     format!("{}/{}", a, b)
+    // });
+
+    let path = format!("{}", PathFormatter { path: &path });
+    let path = String::from_utf8(percent_encoding::percent_decode(path.as_bytes())).unwrap();
+
+    Ok(Some((version.to_owned(), method.to_owned(), path, query, headers)))
 }

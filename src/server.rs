@@ -21,7 +21,7 @@ use ::handler::Handler;
 ///
 /// let root = env::home_dir().unwrap();
 /// let handler = ServerHandler::<FileMode>::new(&root);
-/// let server = HttpServer::new("127.0.0.1:9000");
+/// let server = HttpServer::new("127.0.0.1:9000", 4);
 ///
 /// ```
 #[allow(dead_code)]
@@ -48,27 +48,6 @@ impl HttpServer {
     /// When started, the server will block and listen for connections,
     /// creating the request and response and passing them to the handler
     /// when a client connects
-    ///
-    /// #Examples
-    ///
-    /// ```
-    /// #![allow(dead_code)]
-    /// # use std::env;
-    /// # use std::sync::Arc;
-    /// # use std::thread;
-    /// use http_server::HttpServer;
-    /// # use http_server::handler::{ServerHandler, FileMode};
-    ///
-    /// # let root = env::home_dir().unwrap();
-    /// let server = HttpServer::new("127.0.0.1:9000");
-    /// # let arc = Arc::new(server);
-    /// # let server = arc.clone();
-    /// # thread::spawn(move || {
-    /// # let handler = ServerHandler::<FileMode>::new(&root);
-    /// server.start(Box::new(handler));
-    /// # });
-    /// # arc.clone().stop();
-    /// ```
     pub fn start(&self, handler: Box<Handler + Send + Sync>) {
         let arc = Arc::new(handler);
         for stream in self.listener.incoming() {

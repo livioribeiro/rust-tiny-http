@@ -36,11 +36,18 @@ impl RequestStream {
             content_length = header.map(|line| u64::from_str(line[0]).unwrap());
         }
 
+        let mut path_str = String::new();
+        for p in path.clone() {
+            path_str.push('/');
+            path_str.push_str(&p);
+        }
+
         Some(Request {
             http_version: version,
             method: method,
             scheme: "Http".to_owned(),
             path: path,
+            path_str: path_str,
             query: query,
             content_length: content_length,
             headers: headers,
@@ -66,7 +73,8 @@ pub struct Request {
     http_version: String,
     method: String,
     scheme: String,
-    path: String,
+    path: Vec<String>,
+    path_str: String,
     query: Option<Query>,
     headers: Headers,
     content_length: Option<u64>,
@@ -91,7 +99,11 @@ impl Request {
     }
 
     pub fn path(&self) -> &str {
-        &self.path
+        &self.path_str
+    }
+
+    pub fn path_components(&self) -> Vec<&str> {
+        self.path.iter().map(|i| i.as_ref()).collect()
     }
 
     pub fn query(&self) -> &Option<Query> {

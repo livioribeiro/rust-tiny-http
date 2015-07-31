@@ -1,16 +1,16 @@
 use std::error::Error;
-use std::io::{self, BufRead, BufReader, ErrorKind};
-use std::net::TcpStream;
+use std::io::{self, Read, BufRead, BufReader, ErrorKind};
 use regex::Regex;
 use url;
-use url::format::PathFormatter;
 use url::percent_encoding;
 
 use super::headers::Headers;
 use super::query::Query;
 
-pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
-        -> Result<Option<(String, String, String, Option<Query>, Headers)>, Box<Error>> {
+pub fn parse_request<T: Read>(stream: T)
+        -> Result<Option<(String, String, Vec<String>, Option<Query>, Headers)>, Box<Error>> {
+
+    let mut buf_reader = BufReader::new(stream);
 
     let mut request_line = String::new();
     let bytes_read = try!(buf_reader.read_line(&mut request_line));
@@ -50,12 +50,9 @@ pub fn parse_request(buf_reader: &mut BufReader<TcpStream>)
         }
     }
 
-    // let path = path.iter().fold("".to_string(), |a, b| {
-    //     format!("{}/{}", a, b)
-    // });
-
-    let path = format!("{}", PathFormatter { path: &path });
-    let path = String::from_utf8(percent_encoding::percent_decode(path.as_bytes())).unwrap();
+    let path = path.iter().map(|i| {
+        String::from_utf8_lossy(&percent_encoding::percent_decode(i.as_bytes())).into_owned()
+    }).collect();
 
     Ok(Some((version.to_owned(), method.to_owned(), path, query, headers)))
 }

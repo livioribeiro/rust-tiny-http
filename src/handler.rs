@@ -41,13 +41,18 @@ impl<M: Any> ServerHandler<M> {
     fn get_resource_and_metadata(&self, req: &Request)
             -> Result<(PathBuf, Metadata), Error> {
 
-        let path = req.path();
-        let path = &path[1..path.len()];
+        // let path = req.path();
+        // let path = &path[1..path.len()];
 
-        let resource = self.root.join(path);
+        let root = Path::new(&self.root);//self.root.join(path);
+        let mut resource = root.to_path_buf();
+        for p in req.path_components() {
+            resource = resource.join(p);
+        }
+
         let metadata = try!(fs::metadata(&resource));
 
-        Ok((resource, metadata))
+        Ok((resource.to_path_buf(), metadata))
     }
 
     fn send_file(&self, resource: &PathBuf, metadata: &Metadata, res: &mut Response) {
@@ -59,19 +64,6 @@ impl<M: Any> ServerHandler<M> {
 
         let res = res.start().unwrap();
         io::copy(&mut f, res).unwrap();
-
-        // let mut buf: [u8; 4096] = [0; 4096];
-        // loop {
-        //     match f.read(&mut buf) {
-        //         Ok(bytes_read) => {
-        //             if bytes_read == 0 {
-        //                 break;
-        //             }
-        //             res.write(&buf[0..bytes_read]).unwrap();
-        //         },
-        //         Err(e) => panic!(e)
-        //     }
-        // }
     }
 
     fn send_not_found(&self, res: &mut Response) {

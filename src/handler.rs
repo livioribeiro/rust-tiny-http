@@ -38,13 +38,8 @@ impl<M: Any> ServerHandler<M> {
         }
     }
 
-    fn get_resource_and_metadata(&self, req: &Request)
-            -> Result<(PathBuf, Metadata), Error> {
-
-        // let path = req.path();
-        // let path = &path[1..path.len()];
-
-        let root = Path::new(&self.root);//self.root.join(path);
+    fn get_resource_and_metadata(&self, req: &Request) -> Result<(PathBuf, Metadata), Error> {
+        let root = Path::new(&self.root);
         let mut resource = root.to_path_buf();
         for p in req.path_components() {
             resource = resource.join(p);

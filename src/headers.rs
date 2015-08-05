@@ -7,9 +7,15 @@ pub struct Headers {
 
 #[allow(dead_code)]
 impl Headers {
-    pub fn new() -> Headers {
+    pub fn new() -> Self {
         Headers {
-            data: HashMap::<String, Vec<String>>::new()
+            data: HashMap::<String, Vec<String>>::new(),
+        }
+    }
+
+    pub fn with_data(data: HashMap<String, Vec<String>>) -> Self {
+        Headers {
+            data: data,
         }
     }
 

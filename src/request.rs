@@ -1,76 +1,12 @@
-use std::io::{self, BufReader, Read};
+use std::io::Read;
 use std::net::{SocketAddr, TcpStream};
-use std::str::FromStr;
 
 use super::headers::Headers;
-use super::parser;
 use super::query::Query;
-
-pub struct RequestStream {
-    stream: BufReader<TcpStream>,
-}
-
-impl RequestStream {
-    pub fn from_stream(stream: &TcpStream) -> io::Result<Self> {
-        let stream = try!(stream.try_clone());
-        let buf_reader = BufReader::new(stream);
-
-        Ok(RequestStream {
-            stream: buf_reader,
-        })
-    }
-
-    pub fn requests(&mut self) -> RequestStreamIterMut {
-        RequestStreamIterMut { request_stream: self }
-    }
-
-    fn next_request(&mut self) -> Option<Request> {
-        let (version, method, path, query, headers) = match parser::parse_request(&mut self.stream).unwrap() {
-            Some(result) => result,
-            None => return None,
-        };
-
-        let mut content_length: Option<u64>;
-        {
-            let header: Option<Vec<&str>> = headers.find("Content-Length");
-            content_length = header.map(|line| u64::from_str(line[0]).unwrap());
-        }
-
-        let mut path_str = String::new();
-        for p in path.clone() {
-            path_str.push('/');
-            path_str.push_str(&p);
-        }
-
-        Some(Request {
-            http_version: version,
-            method: method,
-            scheme: "Http".to_owned(),
-            path: path,
-            path_str: path_str,
-            query: query,
-            content_length: content_length,
-            headers: headers,
-            stream: self.stream.get_ref().try_clone().unwrap(),
-        })
-    }
-}
-
-pub struct RequestStreamIterMut<'a> {
-    request_stream: &'a mut RequestStream,
-}
-
-impl<'a> Iterator for RequestStreamIterMut<'a> {
-    type Item = Request;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.request_stream.next_request()
-    }
-}
 
 #[allow(dead_code)]
 pub struct Request {
-    http_version: String,
+    http_version: (u16, u16),
     method: String,
     scheme: String,
     path: Vec<String>,
@@ -82,8 +18,28 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn http_version(&self) -> &str {
-        &self.http_version
+    pub fn new(method: &str, scheme: &str, url: &str, query: Option<Query>,
+               version: (u16, u16), headers: Headers,
+               content_length: Option<u64>,
+               stream: &TcpStream) -> Self {
+
+       let path = url[1..url.len()].split('/').map(|x| x.to_owned()).collect();
+
+       Request {
+           http_version: version,
+           method: method.to_owned(),
+           scheme: scheme.to_owned(),
+           path: path,
+           path_str: url.to_owned(),
+           headers: headers,
+           query: query,
+           content_length: content_length,
+           stream: stream.try_clone().unwrap(),
+       }
+   }
+
+    pub fn http_version(&self) -> (u16, u16) {
+        self.http_version
     }
 
     pub fn method(&self) -> &str {

@@ -83,6 +83,8 @@ impl Response {
 
         self.headers_written = true;
 
+        println!("{}", self.headers.to_string());
+
         let status_line = format!("HTTP/{} {} {}\r\n", self.http_version, self.status, self.status_text);
         try!(self.stream.write(status_line.as_bytes()));
 

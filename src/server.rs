@@ -1,10 +1,68 @@
-use std::net::TcpListener;
+use std::collections::HashMap;
+use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use threadpool::ThreadPool;
 
 use ::response::Response;
-use ::request::RequestStream;
+use ::request::{Request};
 use ::handler::Handler;
+use ::headers::Headers;
+use ::query::Query;
+use ::parser::{Parser, ParserHandler};
+
+#[derive(Default)]
+struct HttpParserHandler {
+    method: String,
+    url: String,
+    query: Option<String>,
+    version: String,
+    headers: HashMap<String, Vec<String>>,
+}
+
+impl HttpParserHandler {
+    pub fn build_request(&self, stream: &TcpStream) -> Request {
+        let version_vec: Vec<&str> = self.version.split('.').collect();
+        let http_version = (version_vec[0].parse().unwrap(), version_vec[1].parse().unwrap());
+        let query = self.query.clone().map(|q| Query::from_str(&q));
+        Request::new(
+            &self.method,
+            "http",
+            &self.url,
+            query,
+            http_version,
+            Headers::with_data(self.headers.clone()),
+            None,
+            stream,
+        )
+    }
+}
+
+impl ParserHandler for HttpParserHandler {
+    fn on_method(&mut self, method: &str) -> bool {
+        self.method = method.to_owned();
+        true
+    }
+
+    fn on_url(&mut self, url: &str) -> bool {
+        self.url = url.to_owned();
+        true
+    }
+
+    fn on_query(&mut self, query: &str) -> bool {
+        self.query = Some(query.to_owned());
+        true
+    }
+
+    fn on_http_version(&mut self, version: &str) -> bool {
+        self.version = version.to_owned();
+        true
+    }
+
+    fn on_header(&mut self, field: &str, values: Vec<&str>) -> bool {
+        self.headers.insert(field.to_owned(), values.into_iter().map(|val| val.to_owned()).collect());
+        true
+    }
+}
 
 /// Server that listen for connections on given address
 ///
@@ -52,16 +110,20 @@ impl HttpServer {
         let arc = Arc::new(handler);
         for stream in self.listener.incoming() {
             match stream {
-                Ok(stream) => {
+                Ok(mut stream) => {
                     let handler = arc.clone();
 
                     self.threadpool.execute(move || {
-                        let mut request_stream = RequestStream::from_stream(&stream).unwrap();
+                        let mut http_parser = HttpParserHandler::default();
+                        Parser::request(&mut http_parser).parse(&mut stream).unwrap();
+                        let mut request = http_parser.build_request(&stream);
 
-                        let mut request = match request_stream.requests().next() {
-                            Some(request) => request,
-                            None => return,
-                        };
+                        // let mut request_stream = RequestStream::from_stream(&stream).unwrap();
+                        //
+                        // let mut request = match request_stream.requests().next() {
+                        //     Some(request) => request,
+                        //     None => return,
+                        // };
                         let mut response = Response::from_stream(&stream).unwrap();
                         handler.handle_request(&mut request, &mut response);
                     });

@@ -41,13 +41,14 @@ impl<M: Any> ServerHandler<M> {
     fn get_resource_and_metadata(&self, req: &Request) -> Result<(PathBuf, Metadata), Error> {
         let root = Path::new(&self.root);
         let mut resource = root.to_path_buf();
-        for p in req.path_components() {
+
+        for p in req.path_components().iter() {
             resource = resource.join(p);
         }
 
         let metadata = try!(fs::metadata(&resource));
 
-        Ok((resource.to_path_buf(), metadata))
+        Ok((resource, metadata))
     }
 
     fn send_file(&self, resource: &PathBuf, metadata: &Metadata, res: &mut Response) {

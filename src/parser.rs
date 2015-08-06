@@ -137,17 +137,17 @@ impl<'a, H: ParserHandler> Parser<'a, H> {
                     return ParserError::abort(ParserMethod::Method);
                 }
 
-                let url = percent_encoding::percent_decode(
+                let url = percent_encoding::lossy_utf8_percent_decode(
                     cap.name("url").unwrap().as_bytes()
                 );
-                if !self.handler.on_url(String::from_utf8_lossy(&url).as_ref()) {
+                if !self.handler.on_url(&url) {
                     return ParserError::abort(ParserMethod::Url);
                 }
 
                 match cap.name("query") {
                     Some(query) => {
-                        let query = percent_encoding::percent_decode(query.as_bytes());
-                        if !self.handler.on_query(String::from_utf8_lossy(&query).as_ref()) {
+                        let query = percent_encoding::lossy_utf8_percent_decode(query.as_bytes());
+                        if !self.handler.on_query(&query) {
                             return ParserError::abort(ParserMethod::Query);
                         }
                     }

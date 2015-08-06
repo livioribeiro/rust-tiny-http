@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use conduit_mime_types::Types;
+use url::percent_encoding as perc_enc;
 
 use ::response::Response;
 use ::request::Request;
@@ -39,8 +40,7 @@ impl<M: Any> ServerHandler<M> {
     }
 
     fn get_resource_and_metadata(&self, req: &Request) -> Result<(PathBuf, Metadata), Error> {
-        let root = Path::new(&self.root);
-        let mut resource = root.to_path_buf();
+        let mut resource = Path::new(&self.root).to_path_buf();
 
         for p in req.path_components().iter() {
             resource = resource.join(p);
@@ -51,7 +51,7 @@ impl<M: Any> ServerHandler<M> {
         Ok((resource, metadata))
     }
 
-    fn send_file(&self, resource: &PathBuf, metadata: &Metadata, res: &mut Response) {
+    fn send_file(&self, resource: &Path, metadata: &Metadata, res: &mut Response) {
         let mut f = File::open(&resource).unwrap();
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
@@ -132,14 +132,6 @@ impl Handler for ServerHandler<DirectoryMode> {
             panic!("rustc failed and stderr was:\n{}", s);
         }
 
-        let mut path = req.path().to_owned();
-        if path.len() == 1 && path == "/" {
-            path.clear();
-        }
-        else if path.len() > 1 && !path.ends_with("/") {
-            path.push('/');
-        }
-
         res.with_header("Content-Type", "text/html; charset=utf-8");
 
         let res = res.start().unwrap();
@@ -155,7 +147,14 @@ impl Handler for ServerHandler<DirectoryMode> {
                 name = format!("{}/", name);
             }
 
-            res.write(format!("<li><a href=\"{0}{1}\">{1}</a></li>", path, name).as_bytes()).unwrap();
+            let mut path = req.path().to_owned();
+            path.push_str(&name);
+            let path = perc_enc::percent_encode(
+                path.as_bytes(),
+                perc_enc::DEFAULT_ENCODE_SET
+            );
+
+            res.write(format!("<li><a href=\"{0}\">{1}</a></li>", path, name).as_bytes()).unwrap();
         }
         res.write("</ul></body></html>".as_bytes()).unwrap();
         res.flush().unwrap();

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::error::Error;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use threadpool::ThreadPool;
@@ -38,29 +39,29 @@ impl HttpParserHandler {
 }
 
 impl ParserHandler for HttpParserHandler {
-    fn on_method(&mut self, method: &str) -> bool {
+    fn on_method(&mut self, method: &str) -> Result<(), Box<Error>> {
         self.method = method.to_owned();
-        true
+        Ok(())
     }
 
-    fn on_url(&mut self, url: &str) -> bool {
+    fn on_url(&mut self, url: &str) -> Result<(), Box<Error>> {
         self.url = url.to_owned();
-        true
+        Ok(())
     }
 
-    fn on_query(&mut self, query: &str) -> bool {
+    fn on_query(&mut self, query: &str) -> Result<(), Box<Error>> {
         self.query = Some(query.to_owned());
-        true
+        Ok(())
     }
 
-    fn on_http_version(&mut self, version: &str) -> bool {
+    fn on_http_version(&mut self, version: &str) -> Result<(), Box<Error>> {
         self.version = version.to_owned();
-        true
+        Ok(())
     }
 
-    fn on_header(&mut self, field: &str, values: Vec<&str>) -> bool {
+    fn on_header(&mut self, field: &str, values: Vec<&str>) -> Result<(), Box<Error>> {
         self.headers.insert(field.to_owned(), values.into_iter().map(|val| val.to_owned()).collect());
-        true
+        Ok(())
     }
 }
 

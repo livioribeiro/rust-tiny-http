@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::io::{self, Write, BufWriter};
-use std::net::{TcpStream};
+use std::net::{TcpStream, Shutdown};
 
 use time;
 
@@ -73,7 +73,8 @@ impl Response {
         self
     }
 
-    pub fn start(&mut self) -> io::Result<&mut BufWriter<TcpStream>> {
+    pub fn start<F>(&mut self, cb: F) -> Result<(), io::Error>
+            where F: FnOnce(&mut BufWriter<TcpStream>) -> Result<(), io::Error> {
         if self.headers_written {
             panic!("Response already started");
         }
@@ -89,6 +90,8 @@ impl Response {
         try!(self.stream.write(format!("{}", self.headers.to_string()).as_bytes()));
         try!(self.stream.write(b"\r\n"));
 
-        Ok(&mut self.stream)
+        let result = cb(&mut self.stream);
+        try!(self.stream.get_mut().shutdown(Shutdown::Both));
+        result
     }
 }

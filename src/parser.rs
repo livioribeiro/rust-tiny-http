@@ -1,19 +1,37 @@
 use std::error::Error;
 use std::io::{self, Read, BufRead, BufReader, ErrorKind};
+use std::fmt;
 use regex::Regex;
 use url::percent_encoding;
 
+#[derive(Debug)]
+pub struct ParseError {
+    description: String,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description)
+    }
+}
+
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        &self.description
+    }
+}
+
 pub trait ParserHandler {
-    fn on_method(&mut self, _method: &str) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_url(&mut self, _url: &str) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_query(&mut self, _query: &str) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_http_version(&mut self, _version: &str) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_status(&mut self, _status: u16) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_header(&mut self, _field: &str, _values: Vec<&str>) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_body(&mut self, _part: &[u8]) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_headers_complete(&mut self) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_message_begin(&mut self) -> Result<(), Box<Error>> { Ok(()) }
-    fn on_message_complete(&mut self) -> Result<(), Box<Error>> { Ok(()) }
+    fn on_method(&mut self, _method: &str) -> Result<(), ParseError> { Ok(()) }
+    fn on_url(&mut self, _url: &str) -> Result<(), ParseError> { Ok(()) }
+    fn on_query(&mut self, _query: &str) -> Result<(), ParseError> { Ok(()) }
+    fn on_http_version(&mut self, _version: &str) -> Result<(), ParseError> { Ok(()) }
+    fn on_status(&mut self, _status: u16) -> Result<(), ParseError> { Ok(()) }
+    fn on_header(&mut self, _field: &str, _values: Vec<&str>) -> Result<(), ParseError> { Ok(()) }
+    fn on_body(&mut self, _part: &[u8]) -> Result<(), ParseError> { Ok(()) }
+    fn on_headers_complete(&mut self) -> Result<(), ParseError> { Ok(()) }
+    fn on_message_begin(&mut self) -> Result<(), ParseError> { Ok(()) }
+    fn on_message_complete(&mut self) -> Result<(), ParseError> { Ok(()) }
 }
 
 pub struct Parser<'a, H: 'a> {
@@ -77,8 +95,17 @@ impl<'a, H: ParserHandler> Parser<'a, H> {
                         break;
                     }
                     let header: Vec<_> = header_line.split(": ").collect();
+
+                    if header.len() != 2 {
+                        let error = io::Error::new(
+                            ErrorKind::InvalidInput,
+                            format!("Invalid Header: '{}'", header_line),
+                        );
+                        return Err(Box::new(error));
+                    }
+
                     let field = header[0];
-                    let values = header[1].split(',').collect();
+                    let values = header[1].split(',').map(|h| h.trim()).collect();
 
                     try!(self.handler.on_header(field, values));
                 },

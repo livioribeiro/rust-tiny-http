@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use threadpool::ThreadPool;
@@ -9,7 +8,7 @@ use ::request::{Request};
 use ::handler::Handler;
 use ::headers::Headers;
 use ::query::Query;
-use ::parser::{Parser, ParserHandler};
+use ::parser::{Parser, ParserHandler, ParseError};
 
 #[derive(Default)]
 struct HttpParserHandler {
@@ -39,27 +38,27 @@ impl HttpParserHandler {
 }
 
 impl ParserHandler for HttpParserHandler {
-    fn on_method(&mut self, method: &str) -> Result<(), Box<Error>> {
+    fn on_method(&mut self, method: &str) -> Result<(), ParseError> {
         self.method = method.to_owned();
         Ok(())
     }
 
-    fn on_url(&mut self, url: &str) -> Result<(), Box<Error>> {
+    fn on_url(&mut self, url: &str) -> Result<(), ParseError> {
         self.url = url.to_owned();
         Ok(())
     }
 
-    fn on_query(&mut self, query: &str) -> Result<(), Box<Error>> {
+    fn on_query(&mut self, query: &str) -> Result<(), ParseError> {
         self.query = Some(query.to_owned());
         Ok(())
     }
 
-    fn on_http_version(&mut self, version: &str) -> Result<(), Box<Error>> {
+    fn on_http_version(&mut self, version: &str) -> Result<(), ParseError> {
         self.version = version.to_owned();
         Ok(())
     }
 
-    fn on_header(&mut self, field: &str, values: Vec<&str>) -> Result<(), Box<Error>> {
+    fn on_header(&mut self, field: &str, values: Vec<&str>) -> Result<(), ParseError> {
         self.headers.insert(field.to_owned(), values.into_iter().map(|val| val.to_owned()).collect());
         Ok(())
     }
@@ -116,20 +115,20 @@ impl HttpServer {
 
                     self.threadpool.execute(move || {
                         let mut http_parser = HttpParserHandler::default();
-                        Parser::request(&mut http_parser).parse(&mut stream).unwrap();
-                        let mut request = http_parser.build_request(&stream);
 
-                        // let mut request_stream = RequestStream::from_stream(&stream).unwrap();
-                        //
-                        // let mut request = match request_stream.requests().next() {
-                        //     Some(request) => request,
-                        //     None => return,
-                        // };
+                        Parser::request(&mut http_parser).parse(&mut stream).unwrap_or_else(|e| {
+                            println!("Erro parsing request: '{}'", e);
+                        });
+
+                        let mut request = http_parser.build_request(&stream);
                         let mut response = Response::from_stream(&stream).unwrap();
-                        handler.handle_request(&mut request, &mut response);
+
+                        handler.handle_request(&mut request, &mut response).unwrap_or_else(|e| {
+                            println!("Error handling request: '{}'", e);
+                        });
                     });
                 },
-                Err(error) => panic!(error),
+                Err(error) => println!("{:?}", error),
             }
         }
     }

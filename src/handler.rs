@@ -1,6 +1,7 @@
+use std::error::Error;
 use std::any::Any;
 use std::fs::{self, File, Metadata};
-use std::io::{self, Write, Error, ErrorKind};
+use std::io::{self, Write, ErrorKind};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,7 +16,7 @@ pub struct FileMode;
 pub struct DirectoryMode;
 
 pub trait Handler {
-    fn handle_request(&self, req: &mut Request, res: &mut Response);
+    fn handle_request(&self, req: &mut Request, res: &mut Response) -> Result<(), io::Error>;
 }
 
 #[derive(Debug)]
@@ -39,7 +40,7 @@ impl<M: Any> ServerHandler<M> {
         }
     }
 
-    fn get_resource_and_metadata(&self, req: &Request) -> Result<(PathBuf, Metadata), Error> {
+    fn get_resource_and_metadata(&self, req: &Request) -> Result<(PathBuf, Metadata), io::Error> {
         let mut resource = Path::new(&self.root).to_path_buf();
 
         for p in req.path_components().iter() {
@@ -51,72 +52,75 @@ impl<M: Any> ServerHandler<M> {
         Ok((resource, metadata))
     }
 
-    fn send_file(&self, resource: &Path, metadata: &Metadata, res: &mut Response) {
-        let mut f = File::open(&resource).unwrap();
+    fn send_file(&self, resource: &Path, metadata: &Metadata, res: &mut Response) -> Result<(), io::Error> {
+        let mut f = try!(File::open(&resource));
         let mime = self.mimetypes.mime_for_path(Path::new(&resource));
 
         res.with_header("Content-Type", mime)
             .with_header("Content-Length", &metadata.len().to_string());
 
-        let res = res.start().unwrap();
-        io::copy(&mut f, res).unwrap();
+        res.start(|res| {
+            try!(io::copy(&mut f, res));
+            try!(res.flush());
+            Ok(())
+        })
     }
 
-    fn send_not_found(&self, res: &mut Response) {
+    fn send_not_found(&self, res: &mut Response) -> Result<(), io::Error> {
         res.with_status(404, "Not Found");
-        let res = res.start().unwrap();
-        res.write("404 - Not Found".as_bytes()).unwrap();
-        res.flush().ok().expect("Failed to send error response");
+        res.start(|res| {
+            try!(res.write("404 - Not Found".as_bytes()));
+            try!(res.flush());
+            Ok(())
+        })
     }
 
-    fn send_error(&self, res: &mut Response, status: i32, description: &str) {
+    fn send_error(&self, res: &mut Response, status: i32, description: &str) -> Result<(), io::Error> {
         res.with_status(status, description);
-        let res = res.start().unwrap();
-        res.write(format!("{} - {}", status, description).as_bytes()).unwrap();
-        res.flush().ok().expect("Failed to send error response");
+        res.start(|res| {
+            try!(res.write(format!("{} - {}", status, description).as_bytes()));
+            try!(res.flush());
+            Ok(())
+        })
     }
 }
 
 impl Handler for ServerHandler<FileMode> {
-    fn handle_request(&self, req: &mut Request, res: &mut Response) {
+    fn handle_request(&self, req: &mut Request, res: &mut Response) -> Result<(), io::Error> {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {
                 if e.kind() == ErrorKind::NotFound {
-                    self.send_not_found(res);
+                    return self.send_not_found(res);
                 } else {
-                    self.send_error(res, 500, "Internal Server Error");
+                    return self.send_error(res, 500, "Internal Server Error");
                 }
-                return;
             }
         };
 
         if !metadata.is_file() {
-            self.send_not_found(res);
-            return;
+            return self.send_not_found(res);
         }
 
-        self.send_file(&resource, &metadata, res);
+        self.send_file(&resource, &metadata, res)
     }
 }
 
 impl Handler for ServerHandler<DirectoryMode> {
-    fn handle_request(&self, req: &mut Request, res: &mut Response) {
+    fn handle_request(&self, req: &mut Request, res: &mut Response) -> Result<(), io::Error> {
         let (resource, metadata) = match self.get_resource_and_metadata(req) {
             Ok(result) => result,
             Err(e) => {
                 if e.kind() == ErrorKind::NotFound {
-                    self.send_not_found(res);
+                    return self.send_not_found(res);
                 } else {
-                    self.send_error(res, 500, "Internal Server Error");
+                    return self.send_error(res, 500, "Internal Server Error");
                 }
-                return;
             }
         };
 
         if metadata.is_file() {
-            self.send_file(&resource, &metadata, res);
-            return;
+            return self.send_file(&resource, &metadata, res);
         }
 
         let output = Command::new("ls")
@@ -134,29 +138,31 @@ impl Handler for ServerHandler<DirectoryMode> {
 
         res.with_header("Content-Type", "text/html; charset=utf-8");
 
-        let res = res.start().unwrap();
+        res.start(|res| {
+            try!(res.write("<html><body><ul>".as_bytes()));
+            for name in s.split('\n') {
+                if name.len() == 0 { continue }
+                let mut name = name.to_owned();
 
-        res.write("<html><body><ul>".as_bytes()).unwrap();
-        for name in s.split('\n') {
-            if name.len() == 0 { continue }
-            let mut name = name.to_owned();
+                let metadata = try!(fs::metadata(Path::new(&resource).join(&name)));
 
-            let metadata = fs::metadata(Path::new(&resource).join(&name)).unwrap();
+                if metadata.is_dir() {
+                    name = format!("{}/", name);
+                }
 
-            if metadata.is_dir() {
-                name = format!("{}/", name);
+                let mut path = req.path().to_owned();
+                path.push_str(&name);
+                let path = perc_enc::percent_encode(
+                    path.as_bytes(),
+                    perc_enc::DEFAULT_ENCODE_SET
+                );
+
+                try!(res.write(format!("<li><a href=\"{0}\">{1}</a></li>", path, name).as_bytes()));
             }
+            try!(res.write("</ul></body></html>".as_bytes()));
+            try!(res.flush());
 
-            let mut path = req.path().to_owned();
-            path.push_str(&name);
-            let path = perc_enc::percent_encode(
-                path.as_bytes(),
-                perc_enc::DEFAULT_ENCODE_SET
-            );
-
-            res.write(format!("<li><a href=\"{0}\">{1}</a></li>", path, name).as_bytes()).unwrap();
-        }
-        res.write("</ul></body></html>".as_bytes()).unwrap();
-        res.flush().unwrap();
+            Ok(())
+        })
     }
 }
